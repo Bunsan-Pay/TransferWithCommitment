@@ -1,0 +1,14 @@
+=== Slither 静的解析バンドル（監査提出用） ===
+生成日時 (UTC): 2026-04-01T03:43:48Z
+
+=== 環境 ===
+forge Version: 1.5.1-stable
+0.11.5
+
+=== スコープ ===
+- detector 結果から lib/ を除外（.slither.config.json の filter_paths および CLI の --filter-paths と一致）。
+- OpenZeppelin / forge-std 由来のノイズを除き、src/・test/・script/ 配下の検出に焦点を当てる。
+- 終了コード: 検出ありの場合 Slither は 0 以外になることがある（JSON/テキストは出力済み）。
+
+=== 直近の Slither 終了コード ===
+255

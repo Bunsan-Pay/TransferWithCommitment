@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"struct":["CancelAuthorizationArgs","SelfBatchTransferWithCommitArgs","SelfSingleTransferArgs","SelfUniCommitTransfersArgs","SignatureBatchTransferWithCommitArgs","SignatureSingleTransferArgs","SignatureUniCommitTransfersArgs"],"type":["BatchTransferWithCommitArgs","SingleTransferArgs","UniCommitTransfersArgs"]};

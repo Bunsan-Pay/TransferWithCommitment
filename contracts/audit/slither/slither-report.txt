@@ -1,0 +1,64 @@
+'forge clean' running (wd: /home/tokino/hdd931/dev/bunsan_link/contracts)
+'forge config --json' running
+'forge build --build-info --skip ./test/** ./script/** --force' running (wd: /home/tokino/hdd931/dev/bunsan_link/contracts)
+
+Detector: arbitrary-send-erc20
+SignatureTransfer._transfer(address,address,address,uint256,bytes32) (src/SignatureTransfer/SignatureTransfer.sol#179-186) uses arbitrary from in transferFrom: tokenContract.safeTransferFrom(from,to,value) (src/SignatureTransfer/SignatureTransfer.sol#184)
+Reference: https://github.com/crytic/slither/wiki/Detector-Documentation#arbitrary-from-in-transferfrom
+
+Detector: calls-loop
+SignatureTransfer._transfer(address,address,address,uint256,bytes32) (src/SignatureTransfer/SignatureTransfer.sol#179-186) has external calls inside a loop: tokenContract.allowance(from,address(this)) < value (src/SignatureTransfer/SignatureTransfer.sol#181)
+	Calls stack containing the loop:
+		SignatureTransfer.transferWithAuthorization(address,CommittedTransferDetail[],uint256,uint256,bytes)
+		SignatureTransfer._batchTransfers(address,CommittedTransferDetail[])
+		SignatureTransfer._transferWithGuard(address,address,address,uint256,bytes32)
+SignatureTransfer._transfer(address,address,address,uint256,bytes32) (src/SignatureTransfer/SignatureTransfer.sol#179-186) has external calls inside a loop: tokenContract.allowance(from,address(this)) < value (src/SignatureTransfer/SignatureTransfer.sol#181)
+	Calls stack containing the loop:
+		SignatureTransfer.transferWithAuthorization(address,TransferDetail[],uint256,uint256,bytes32,bytes)
+		SignatureTransfer._unifiedTransfers(address,TransferDetail[],bytes32)
+SelfTransfer._transfer(address,address,uint256,bytes32) (src/SelfTransfer/SelfTransfer.sol#58-65) has external calls inside a loop: tokenContract.allowance(msg.sender,address(this)) < value (src/SelfTransfer/SelfTransfer.sol#60)
+	Calls stack containing the loop:
+		SelfTransfer.transfer(TransferDetail[],bytes32)
+SelfTransfer._transfer(address,address,uint256,bytes32) (src/SelfTransfer/SelfTransfer.sol#58-65) has external calls inside a loop: tokenContract.allowance(msg.sender,address(this)) < value (src/SelfTransfer/SelfTransfer.sol#60)
+	Calls stack containing the loop:
+		SelfTransfer.transfer(CommittedTransferDetail[])
+		SelfTransfer._transferWithGuard(address,address,uint256,bytes32)
+Reference: https://github.com/crytic/slither/wiki/Detector-Documentation/#calls-inside-a-loop
+
+Detector: solc-version
+Version constraint ^0.8.13 contains known severe issues (https://solidity.readthedocs.io/en/latest/bugs.html)
+	- VerbatimInvalidDeduplication
+	- FullInlinerNonExpressionSplitArgumentEvaluationOrder
+	- MissingSideEffectsOnSelectorAccess
+	- StorageWriteRemovalBeforeConditionalTermination
+	- AbiReencodingHeadOverflowWithStaticArrayCleanup
+	- DirtyBytesArrayToStorage
+	- InlineAssemblyMemorySideEffects
+	- DataLocationChangeInInternalOverride
+	- NestedCalldataArrayAbiReencodingSizeValidation.
+It is used by:
+	- ^0.8.13 (src/Events.sol#2)
+	- ^0.8.13 (src/ITransferWithCommitment.sol#2)
+	- ^0.8.13 (src/SelfTransfer/ISelfTransfer.sol#2)
+	- ^0.8.13 (src/SelfTransfer/SelfTransfer.sol#2)
+	- ^0.8.13 (src/SignatureTransfer/Hash.sol#2)
+	- ^0.8.13 (src/SignatureTransfer/ISignatureTransfer.sol#2)
+	- ^0.8.13 (src/SignatureTransfer/SignatureTransfer.sol#2)
+	- ^0.8.13 (src/State/IState.sol#2)
+	- ^0.8.13 (src/State/State.sol#2)
+	- ^0.8.13 (src/Structs.sol#2)
+	- ^0.8.13 (src/TransferWithCommitment.sol#2)
+Reference: https://github.com/crytic/slither/wiki/Detector-Documentation#incorrect-versions-of-solidity
+
+Detector: missing-inheritance
+TransferWithCommitment (src/TransferWithCommitment.sol#6-8) should inherit from ITransferWithCommitment (src/ITransferWithCommitment.sol#7)
+Reference: https://github.com/crytic/slither/wiki/Detector-Documentation#missing-inheritance
+
+Detector: naming-convention
+Function ISignatureTransfer.TRANSFER_WITH_COMMIT_TYPEHASH() (src/SignatureTransfer/ISignatureTransfer.sol#8) is not in mixedCase
+Function ISignatureTransfer.UNI_COMMIT_TRANSFER_TYPEHASH() (src/SignatureTransfer/ISignatureTransfer.sol#10) is not in mixedCase
+Function ISignatureTransfer.BATCH_TRANSFER_WITH_COMMIT_TYPEHASH() (src/SignatureTransfer/ISignatureTransfer.sol#12) is not in mixedCase
+Reference: https://github.com/crytic/slither/wiki/Detector-Documentation#conformance-to-solidity-naming-conventions
+. analyzed (30 contracts with 101 detectors), 10 result(s) found
+INFO:Slither:/home/tokino/hdd931/dev/bunsan_link/contracts/audit/slither/slither-report.json exists already, the overwrite is prevented
+INFO:Slither:/home/tokino/hdd931/dev/bunsan_link/contracts/audit/slither/slither-report.sarif exists already, the overwrite is prevented

@@ -1,0 +1,16 @@
+[profile.default]
+src = "src"
+out = "out"
+libs = ["lib"]
+solc_version = "0.8.26"
+optimizer = true
+viaIR = true
+
+[rpc_endpoints]
+mainnet = "https://ethereum.reth.rs/rpc"
+sepolia = "https://sepolia.drpc.org"
+poligon = "https://polygon.drpc.org"
+arbitrum = "https://arb1.arbitrum.io/rpc"
+avalanche = "https://avalanche.drpc.org"
+
+# See more config options https://github.com/foundry-rs/foundry/blob/master/crates/config/README.md#all-options

@@ -1,0 +1,329 @@
+{
+  "$schema": "https://raw.githubusercontent.com/oasis-tcs/sarif-spec/master/Schemata/sarif-schema-2.1.0.json",
+  "version": "2.1.0",
+  "runs": [
+    {
+      "tool": {
+        "driver": {
+          "name": "Slither",
+          "informationUri": "https://github.com/crytic/slither",
+          "version": "0.11.5",
+          "rules": [
+            {
+              "id": "0-0-arbitrary-send-erc20",
+              "name": "arbitrary-send-erc20",
+              "properties": {
+                "precision": "very-high",
+                "security-severity": "8.0"
+              },
+              "shortDescription": {
+                "text": "Arbitrary `from` in transferFrom"
+              },
+              "help": {
+                "text": "\nUse `msg.sender` as `from` in transferFrom.\n"
+              }
+            },
+            {
+              "id": "2-1-calls-loop",
+              "name": "calls-loop",
+              "properties": {
+                "precision": "high",
+                "security-severity": "3.0"
+              },
+              "shortDescription": {
+                "text": "Calls inside a loop"
+              },
+              "help": {
+                "text": "Favor [pull over push](https://github.com/ethereum/wiki/wiki/Safety#favor-pull-over-push-for-external-calls) strategy for external calls."
+              }
+            },
+            {
+              "id": "3-0-solc-version",
+              "name": "solc-version",
+              "properties": {
+                "precision": "very-high",
+                "security-severity": "0.0"
+              },
+              "shortDescription": {
+                "text": "Incorrect versions of Solidity"
+              },
+              "help": {
+                "text": "\nDeploy with a recent version of Solidity (at least 0.8.0) with no known severe issues.\n\nUse a simple pragma version that allows any of these versions.\nConsider using the latest version of Solidity for testing."
+              }
+            },
+            {
+              "id": "3-0-missing-inheritance",
+              "name": "missing-inheritance",
+              "properties": {
+                "precision": "very-high",
+                "security-severity": "0.0"
+              },
+              "shortDescription": {
+                "text": "Missing inheritance"
+              },
+              "help": {
+                "text": "Inherit from the missing interface or contract."
+              }
+            },
+            {
+              "id": "3-0-naming-convention",
+              "name": "naming-convention",
+              "properties": {
+                "precision": "very-high",
+                "security-severity": "0.0"
+              },
+              "shortDescription": {
+                "text": "Conformance to Solidity naming conventions"
+              },
+              "help": {
+                "text": "Follow the Solidity [naming convention](https://solidity.readthedocs.io/en/v0.4.25/style-guide.html#naming-conventions)."
+              }
+            }
+          ]
+        }
+      },
+      "results": [
+        {
+          "ruleId": "0-0-arbitrary-send-erc20",
+          "message": {
+            "text": "SignatureTransfer._transfer(address,address,address,uint256,bytes32) (src/SignatureTransfer/SignatureTransfer.sol#179-186) uses arbitrary from in transferFrom: tokenContract.safeTransferFrom(from,to,value) (src/SignatureTransfer/SignatureTransfer.sol#184)\n",
+            "markdown": "[SignatureTransfer._transfer(address,address,address,uint256,bytes32)](src/SignatureTransfer/SignatureTransfer.sol#L179-L186) uses arbitrary from in transferFrom: [tokenContract.safeTransferFrom(from,to,value)](src/SignatureTransfer/SignatureTransfer.sol#L184)\n"
+          },
+          "level": "warning",
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "src/SignatureTransfer/SignatureTransfer.sol"
+                },
+                "region": {
+                  "startLine": 179,
+                  "endLine": 186
+                }
+              }
+            }
+          ],
+          "partialFingerprints": {
+            "id": "e298e082a644841d3a75e745eb776755e07a1a86e61f3dbfdcbaf5685293b850"
+          }
+        },
+        {
+          "ruleId": "2-1-calls-loop",
+          "message": {
+            "text": "SignatureTransfer._transfer(address,address,address,uint256,bytes32) (src/SignatureTransfer/SignatureTransfer.sol#179-186) has external calls inside a loop: tokenContract.allowance(from,address(this)) < value (src/SignatureTransfer/SignatureTransfer.sol#181)\n\tCalls stack containing the loop:\n\t\tSignatureTransfer.transferWithAuthorization(address,TransferDetail[],uint256,uint256,bytes32,bytes)\n\t\tSignatureTransfer._unifiedTransfers(address,TransferDetail[],bytes32)\n",
+            "markdown": "[SignatureTransfer._transfer(address,address,address,uint256,bytes32)](src/SignatureTransfer/SignatureTransfer.sol#L179-L186) has external calls inside a loop: [tokenContract.allowance(from,address(this)) < value](src/SignatureTransfer/SignatureTransfer.sol#L181)\n\tCalls stack containing the loop:\n\t\tSignatureTransfer.transferWithAuthorization(address,TransferDetail[],uint256,uint256,bytes32,bytes)\n\t\tSignatureTransfer._unifiedTransfers(address,TransferDetail[],bytes32)\n"
+          },
+          "level": "warning",
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "src/SignatureTransfer/SignatureTransfer.sol"
+                },
+                "region": {
+                  "startLine": 179,
+                  "endLine": 186
+                }
+              }
+            }
+          ],
+          "partialFingerprints": {
+            "id": "7a9b016224029f1da27100a49ab0676815551e17e30450bab686f88419133992"
+          }
+        },
+        {
+          "ruleId": "2-1-calls-loop",
+          "message": {
+            "text": "SignatureTransfer._transfer(address,address,address,uint256,bytes32) (src/SignatureTransfer/SignatureTransfer.sol#179-186) has external calls inside a loop: tokenContract.allowance(from,address(this)) < value (src/SignatureTransfer/SignatureTransfer.sol#181)\n\tCalls stack containing the loop:\n\t\tSignatureTransfer.transferWithAuthorization(address,CommittedTransferDetail[],uint256,uint256,bytes)\n\t\tSignatureTransfer._batchTransfers(address,CommittedTransferDetail[])\n\t\tSignatureTransfer._transferWithGuard(address,address,address,uint256,bytes32)\n",
+            "markdown": "[SignatureTransfer._transfer(address,address,address,uint256,bytes32)](src/SignatureTransfer/SignatureTransfer.sol#L179-L186) has external calls inside a loop: [tokenContract.allowance(from,address(this)) < value](src/SignatureTransfer/SignatureTransfer.sol#L181)\n\tCalls stack containing the loop:\n\t\tSignatureTransfer.transferWithAuthorization(address,CommittedTransferDetail[],uint256,uint256,bytes)\n\t\tSignatureTransfer._batchTransfers(address,CommittedTransferDetail[])\n\t\tSignatureTransfer._transferWithGuard(address,address,address,uint256,bytes32)\n"
+          },
+          "level": "warning",
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "src/SignatureTransfer/SignatureTransfer.sol"
+                },
+                "region": {
+                  "startLine": 179,
+                  "endLine": 186
+                }
+              }
+            }
+          ],
+          "partialFingerprints": {
+            "id": "bd00bb4ffcb2abea6187657c12144d494929a75c0ec9d36928a04188c725bcea"
+          }
+        },
+        {
+          "ruleId": "2-1-calls-loop",
+          "message": {
+            "text": "SelfTransfer._transfer(address,address,uint256,bytes32) (src/SelfTransfer/SelfTransfer.sol#58-65) has external calls inside a loop: tokenContract.allowance(msg.sender,address(this)) < value (src/SelfTransfer/SelfTransfer.sol#60)\n\tCalls stack containing the loop:\n\t\tSelfTransfer.transfer(CommittedTransferDetail[])\n\t\tSelfTransfer._transferWithGuard(address,address,uint256,bytes32)\n",
+            "markdown": "[SelfTransfer._transfer(address,address,uint256,bytes32)](src/SelfTransfer/SelfTransfer.sol#L58-L65) has external calls inside a loop: [tokenContract.allowance(msg.sender,address(this)) < value](src/SelfTransfer/SelfTransfer.sol#L60)\n\tCalls stack containing the loop:\n\t\tSelfTransfer.transfer(CommittedTransferDetail[])\n\t\tSelfTransfer._transferWithGuard(address,address,uint256,bytes32)\n"
+          },
+          "level": "warning",
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "src/SelfTransfer/SelfTransfer.sol"
+                },
+                "region": {
+                  "startLine": 58,
+                  "endLine": 65
+                }
+              }
+            }
+          ],
+          "partialFingerprints": {
+            "id": "e51fabda35488410184916ae8de7d0da342eed0db8841842a6255125fe632b78"
+          }
+        },
+        {
+          "ruleId": "2-1-calls-loop",
+          "message": {
+            "text": "SelfTransfer._transfer(address,address,uint256,bytes32) (src/SelfTransfer/SelfTransfer.sol#58-65) has external calls inside a loop: tokenContract.allowance(msg.sender,address(this)) < value (src/SelfTransfer/SelfTransfer.sol#60)\n\tCalls stack containing the loop:\n\t\tSelfTransfer.transfer(TransferDetail[],bytes32)\n",
+            "markdown": "[SelfTransfer._transfer(address,address,uint256,bytes32)](src/SelfTransfer/SelfTransfer.sol#L58-L65) has external calls inside a loop: [tokenContract.allowance(msg.sender,address(this)) < value](src/SelfTransfer/SelfTransfer.sol#L60)\n\tCalls stack containing the loop:\n\t\tSelfTransfer.transfer(TransferDetail[],bytes32)\n"
+          },
+          "level": "warning",
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "src/SelfTransfer/SelfTransfer.sol"
+                },
+                "region": {
+                  "startLine": 58,
+                  "endLine": 65
+                }
+              }
+            }
+          ],
+          "partialFingerprints": {
+            "id": "ff1d635cda5d68b5d6b8392d0d8c1a672b0cc98c433159fa8d8c67874654515f"
+          }
+        },
+        {
+          "ruleId": "3-0-solc-version",
+          "message": {
+            "text": "Version constraint ^0.8.13 contains known severe issues (https://solidity.readthedocs.io/en/latest/bugs.html)\n\t- VerbatimInvalidDeduplication\n\t- FullInlinerNonExpressionSplitArgumentEvaluationOrder\n\t- MissingSideEffectsOnSelectorAccess\n\t- StorageWriteRemovalBeforeConditionalTermination\n\t- AbiReencodingHeadOverflowWithStaticArrayCleanup\n\t- DirtyBytesArrayToStorage\n\t- InlineAssemblyMemorySideEffects\n\t- DataLocationChangeInInternalOverride\n\t- NestedCalldataArrayAbiReencodingSizeValidation.\nIt is used by:\n\t- ^0.8.13 (src/Events.sol#2)\n\t- ^0.8.13 (src/ITransferWithCommitment.sol#2)\n\t- ^0.8.13 (src/SelfTransfer/ISelfTransfer.sol#2)\n\t- ^0.8.13 (src/SelfTransfer/SelfTransfer.sol#2)\n\t- ^0.8.13 (src/SignatureTransfer/Hash.sol#2)\n\t- ^0.8.13 (src/SignatureTransfer/ISignatureTransfer.sol#2)\n\t- ^0.8.13 (src/SignatureTransfer/SignatureTransfer.sol#2)\n\t- ^0.8.13 (src/State/IState.sol#2)\n\t- ^0.8.13 (src/State/State.sol#2)\n\t- ^0.8.13 (src/Structs.sol#2)\n\t- ^0.8.13 (src/TransferWithCommitment.sol#2)\n",
+            "markdown": "Version constraint ^0.8.13 contains known severe issues (https://solidity.readthedocs.io/en/latest/bugs.html)\n\t- VerbatimInvalidDeduplication\n\t- FullInlinerNonExpressionSplitArgumentEvaluationOrder\n\t- MissingSideEffectsOnSelectorAccess\n\t- StorageWriteRemovalBeforeConditionalTermination\n\t- AbiReencodingHeadOverflowWithStaticArrayCleanup\n\t- DirtyBytesArrayToStorage\n\t- InlineAssemblyMemorySideEffects\n\t- DataLocationChangeInInternalOverride\n\t- NestedCalldataArrayAbiReencodingSizeValidation.\nIt is used by:\n\t- [^0.8.13](src/Events.sol#L2)\n\t- [^0.8.13](src/ITransferWithCommitment.sol#L2)\n\t- [^0.8.13](src/SelfTransfer/ISelfTransfer.sol#L2)\n\t- [^0.8.13](src/SelfTransfer/SelfTransfer.sol#L2)\n\t- [^0.8.13](src/SignatureTransfer/Hash.sol#L2)\n\t- [^0.8.13](src/SignatureTransfer/ISignatureTransfer.sol#L2)\n\t- [^0.8.13](src/SignatureTransfer/SignatureTransfer.sol#L2)\n\t- [^0.8.13](src/State/IState.sol#L2)\n\t- [^0.8.13](src/State/State.sol#L2)\n\t- [^0.8.13](src/Structs.sol#L2)\n\t- [^0.8.13](src/TransferWithCommitment.sol#L2)\n"
+          },
+          "level": "warning",
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "src/Events.sol"
+                },
+                "region": {
+                  "startLine": 2,
+                  "endLine": 2
+                }
+              }
+            }
+          ],
+          "partialFingerprints": {
+            "id": "c2008b30334cdc8546dc97f852f6513e6fc24c5fd162d1c2588fa6d46071235c"
+          }
+        },
+        {
+          "ruleId": "3-0-missing-inheritance",
+          "message": {
+            "text": "TransferWithCommitment (src/TransferWithCommitment.sol#6-8) should inherit from ITransferWithCommitment (src/ITransferWithCommitment.sol#7)\n",
+            "markdown": "[TransferWithCommitment](src/TransferWithCommitment.sol#L6-L8) should inherit from [ITransferWithCommitment](src/ITransferWithCommitment.sol#L7)\n"
+          },
+          "level": "warning",
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "src/TransferWithCommitment.sol"
+                },
+                "region": {
+                  "startLine": 6,
+                  "endLine": 8
+                }
+              }
+            }
+          ],
+          "partialFingerprints": {
+            "id": "a6bc3a8ad2674d0f8b265b5c40749f91cb58de4d2e15ff87bf859441e1a48912"
+          }
+        },
+        {
+          "ruleId": "3-0-naming-convention",
+          "message": {
+            "text": "Function ISignatureTransfer.TRANSFER_WITH_COMMIT_TYPEHASH() (src/SignatureTransfer/ISignatureTransfer.sol#8) is not in mixedCase\n",
+            "markdown": "Function [ISignatureTransfer.TRANSFER_WITH_COMMIT_TYPEHASH()](src/SignatureTransfer/ISignatureTransfer.sol#L8) is not in mixedCase\n"
+          },
+          "level": "warning",
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "src/SignatureTransfer/ISignatureTransfer.sol"
+                },
+                "region": {
+                  "startLine": 8,
+                  "endLine": 8
+                }
+              }
+            }
+          ],
+          "partialFingerprints": {
+            "id": "72506d57b4e1aa1f2c761e818272aa82339d81f867ea1afb954c4f6c31e7d554"
+          }
+        },
+        {
+          "ruleId": "3-0-naming-convention",
+          "message": {
+            "text": "Function ISignatureTransfer.BATCH_TRANSFER_WITH_COMMIT_TYPEHASH() (src/SignatureTransfer/ISignatureTransfer.sol#12) is not in mixedCase\n",
+            "markdown": "Function [ISignatureTransfer.BATCH_TRANSFER_WITH_COMMIT_TYPEHASH()](src/SignatureTransfer/ISignatureTransfer.sol#L12) is not in mixedCase\n"
+          },
+          "level": "warning",
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "src/SignatureTransfer/ISignatureTransfer.sol"
+                },
+                "region": {
+                  "startLine": 12,
+                  "endLine": 12
+                }
+              }
+            }
+          ],
+          "partialFingerprints": {
+            "id": "e34405a951ab0e891a44731bd4b87cc6c041541c1cce203a92361cef5a674518"
+          }
+        },
+        {
+          "ruleId": "3-0-naming-convention",
+          "message": {
+            "text": "Function ISignatureTransfer.UNI_COMMIT_TRANSFER_TYPEHASH() (src/SignatureTransfer/ISignatureTransfer.sol#10) is not in mixedCase\n",
+            "markdown": "Function [ISignatureTransfer.UNI_COMMIT_TRANSFER_TYPEHASH()](src/SignatureTransfer/ISignatureTransfer.sol#L10) is not in mixedCase\n"
+          },
+          "level": "warning",
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "src/SignatureTransfer/ISignatureTransfer.sol"
+                },
+                "region": {
+                  "startLine": 10,
+                  "endLine": 10
+                }
+              }
+            }
+          ],
+          "partialFingerprints": {
+            "id": "e6071cfc2dff1908ea6be08569514ad80b1d900312af5d826993ac82413d87bd"
+          }
+        }
+      ]
+    }
+  ]
+}

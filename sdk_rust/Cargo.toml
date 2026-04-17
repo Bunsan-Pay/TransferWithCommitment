@@ -1,0 +1,32 @@
+[package]
+name = "eth-twc-sdk"
+version = "0.1.0"
+edition = "2021"
+description = "Rust SDK for TransferWithCommitment (TWC): EIP-712 signing, contract calls, and receipt verification"
+license = "MIT OR Apache-2.0"
+
+[features]
+# 単体テストで `TRANSFER_WITH_COMMITMENT_ADDRESS` を非ゼロにする。
+test-config = []
+# Anvil 結合テスト: `ETH_TWC_CONTRACT_ADDRESS` とチェーン 31337（`test/integration/run.sh`）。
+integration-test = []
+
+[dependencies]
+alloy = { version = "1.8", features = [
+    "provider-http",
+    "signer-local",
+    "contract",
+    "sol-types",
+    "rpc-types-eth",
+    "network",
+    "rpc",
+] }
+async-trait = "0.1"
+thiserror = "2"
+tokio = { version = "1", features = ["macros", "rt-multi-thread"] }
+
+[dev-dependencies]
+reqwest = { version = "0.13", default-features = false }
+serde_json = "1"
+tokio = { version = "1", features = ["macros", "rt-multi-thread"] }
+wiremock = "0.6"

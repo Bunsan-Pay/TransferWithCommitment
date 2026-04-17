@@ -1,0 +1,39 @@
+{
+  "name": "eth-twc-sdk-react",
+  "module": "index.ts",
+  "type": "module",
+  "exports": {
+    ".": "./index.ts"
+  },
+  "scripts": {
+    "test": "bun test --preload ./test/preload.ts --concurrency 1 ./test/",
+    "typecheck": "tsc --noEmit && tsc --noEmit -p test/tsconfig.json"
+  },
+  "peerDependencies": {
+    "@tanstack/react-query": "^5.59.0",
+    "react": "^18 || ^19",
+    "typescript": "^5",
+    "viem": "^2.0.0",
+    "wagmi": "^3.0.0"
+  },
+  "peerDependenciesMeta": {
+    "typescript": {
+      "optional": true
+    }
+  },
+  "dependencies": {
+    "eth-twc-sdk-js": "workspace:^"
+  },
+  "devDependencies": {
+    "@tanstack/react-query": "^5.99.0",
+    "@testing-library/react": "^16.3.0",
+    "@types/bun": "latest",
+    "@types/react": "^19",
+    "happy-dom": "^20.0.10",
+    "react": "^19.2.5",
+    "react-dom": "^19.2.5",
+    "typescript": "^5",
+    "viem": "2.x",
+    "wagmi": "^3.6.1"
+  }
+}

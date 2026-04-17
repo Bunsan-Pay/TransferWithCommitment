@@ -1,0 +1,27 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "noEmit": false,
+    "rootDir": "..",
+    "outDir": "dist",
+    "target": "ES2022",
+    "module": "ES2022",
+    "moduleResolution": "bundler",
+    "allowImportingTsExtensions": false,
+    "verbatimModuleSyntax": false,
+    "declaration": true,
+    "declarationMap": false,
+    "sourceMap": false,
+    "emitDeclarationOnly": false
+  },
+  "include": [
+    "verify.ts",
+    "sign.ts",
+    "config.ts",
+    "utils.ts",
+    "sendTransaction/**/*.ts",
+    "types/**/*.ts",
+    "types/args/**/*.ts",
+    "../contracts/abi/generated.ts"
+  ]
+}

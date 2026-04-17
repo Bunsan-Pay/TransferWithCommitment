@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"struct":["SignedBatchTransferWithCommit","SignedCancelAuthorization","SignedTransferWithCommit","SignedUniCommitTransfers"]};

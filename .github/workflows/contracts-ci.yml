@@ -1,0 +1,85 @@
+# Git のルートがモノレポの親ディレクトリのとき、Foundry プロジェクトは contracts/ 配下にある。
+# GitHub はリポジトリルートの .github/workflows/ しか読まないため、このファイルを親に置く。
+name: Contracts CI
+
+permissions: {}
+
+on:
+  push:
+    paths:
+      - "contracts/**"
+      - ".github/workflows/contracts-ci.yml"
+  pull_request:
+    paths:
+      - "contracts/**"
+      - ".github/workflows/contracts-ci.yml"
+  workflow_dispatch:
+
+env:
+  FOUNDRY_PROFILE: ci
+
+defaults:
+  run:
+    working-directory: contracts
+
+jobs:
+  check:
+    name: Foundry project
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          persist-credentials: false
+          submodules: recursive
+
+      - name: Install Foundry
+        uses: foundry-rs/foundry-toolchain@v1
+
+      - name: Show Forge version
+        run: forge --version
+
+      - name: Run Forge fmt
+        run: forge fmt --check
+
+      - name: Run Forge build
+        run: forge build --sizes
+
+      - name: Run Forge tests
+        run: forge test -vvv
+
+  slither:
+    name: Slither (audit bundle)
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      actions: read
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          persist-credentials: false
+          submodules: recursive
+
+      - name: Install Foundry
+        uses: foundry-rs/foundry-toolchain@v1
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
+        with:
+          version: "latest"
+
+      - name: Install Slither
+        run: |
+          uv tool install slither-analyzer
+          echo "$HOME/.local/bin" >> "$GITHUB_PATH"
+
+      - name: Generate Slither report bundle
+        run: chmod +x scripts/slither-report.sh && ./scripts/slither-report.sh
+
+      - name: Upload Slither artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: slither-audit-bundle
+          path: contracts/audit/slither/
+          if-no-files-found: error

@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"mod":["args","signed_data","transfer_detail"]};

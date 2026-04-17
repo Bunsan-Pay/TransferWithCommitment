@@ -1,0 +1,143 @@
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="eth-twc-sdk"><title>eth_twc_sdk - Rust</title><script>if(window.location.protocol!=="file:")document.head.insertAdjacentHTML("beforeend","SourceSerif4-Regular-6b053e98.ttf.woff2,FiraSans-Italic-81dc35de.woff2,FiraSans-Regular-0fe48ade.woff2,FiraSans-MediumItalic-ccf7e434.woff2,FiraSans-Medium-e1aa3f0a.woff2,SourceCodePro-Regular-8badfe75.ttf.woff2,SourceCodePro-Semibold-aa29a496.ttf.woff2".split(",").map(f=>`<link rel="preload" as="font" type="font/woff2"href="../static.files/${f}">`).join(""))</script><link rel="stylesheet" href="../static.files/normalize-9960930a.css"><link rel="stylesheet" href="../static.files/rustdoc-77263533.css"><meta name="rustdoc-vars" data-root-path="../" data-static-root-path="../static.files/" data-current-crate="eth_twc_sdk" data-themes="" data-resource-suffix="" data-rustdoc-version="1.94.1 (e408947bf 2026-03-25)" data-channel="1.94.1" data-search-js="search-9e2438ea.js" data-stringdex-js="stringdex-b897f86f.js" data-settings-js="settings-c38705f0.js" ><script src="../static.files/storage-e2aeef58.js"></script><script defer src="../crates.js"></script><script defer src="../static.files/main-7bab91a1.js"></script><noscript><link rel="stylesheet" href="../static.files/noscript-ffcac47a.css"></noscript><link rel="alternate icon" type="image/png" href="../static.files/favicon-32x32-eab170b8.png"><link rel="icon" type="image/svg+xml" href="../static.files/favicon-044be391.svg"></head><body class="rustdoc mod crate"><!--[if lte IE 11]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><rustdoc-topbar><h2><a href="#">Crate eth_twc_sdk</a></h2></rustdoc-topbar><nav class="sidebar"><div class="sidebar-crate"><h2><a href="../eth_twc_sdk/index.html">eth_<wbr>twc_<wbr>sdk</a><span class="version">0.1.0</span></h2></div><div class="sidebar-elems"><ul class="block"><li><a id="all-types" href="all.html">All Items</a></li></ul><section id="rustdoc-toc"><h3><a href="#">Sections</a></h3><ul class="block top-toc"><li><a href="#eth-twc-sdk" title="eth-twc-sdk">eth-twc-sdk</a><ul><li><a href="#usage" title="Usage">Usage</a></li><li><a href="#構成" title="構成">構成</a></li><li><a href="#クイックリンク" title="クイックリンク">クイックリンク</a></li><li><a href="#ドキュメントの生成" title="ドキュメントの生成">ドキュメントの生成</a></li></ul></li></ul><h3><a href="#reexports">Crate Items</a></h3><ul class="block"><li><a href="#reexports" title="Re-exports">Re-exports</a></li><li><a href="#modules" title="Modules">Modules</a></li><li><a href="#structs" title="Structs">Structs</a></li></ul></section><div id="rustdoc-modnav"></div></div></nav><div class="sidebar-resizer" title="Drag to resize sidebar"></div><main><div class="width-limiter"><section id="main-content" class="content"><div class="main-heading"><h1>Crate <span>eth_<wbr>twc_<wbr>sdk</span>&nbsp;<button id="copy-path" title="Copy item path to clipboard">Copy item path</button></h1><rustdoc-toolbar></rustdoc-toolbar><span class="sub-heading"><a class="src" href="../src/eth_twc_sdk/lib.rs.html#1-191">Source</a> </span></div><details class="toggle top-doc" open><summary class="hideme"><span>Expand description</span></summary><div class="docblock"><h2 id="eth-twc-sdk"><a class="doc-anchor" href="#eth-twc-sdk">§</a>eth-twc-sdk</h2>
+<p><strong>TransferWithCommitment（TWC）</strong> 向け Ethereum クライアント SDK（EIP-712・コントラクト呼び出し・レシート検証）。</p>
+<h3 id="usage"><a class="doc-anchor" href="#usage">§</a>Usage</h3>
+<ol>
+<li><strong>TWC アドレス</strong> — 通常ビルドでは <a href="config/index.html" title="mod eth_twc_sdk::config"><code>config</code></a> のソース（<a href="config/fn.transfer_with_commitment_address.html" title="fn eth_twc_sdk::config::transfer_with_commitment_address"><code>transfer_with_commitment_address</code></a> が返すコンパイル時定数）をデプロイ先に合わせる。<code>integration-test</code> 時のみ環境変数 <code>ETH_TWC_CONTRACT_ADDRESS</code> を参照します。</li>
+<li><strong>プロバイダ</strong> — Alloy の <a href="alloy::providers::Provider"><code>Provider</code></a>（例: <code>ProviderBuilder::new().connect_http(url)</code>）を用意します。</li>
+<li><strong>送金</strong> — EIP-712 委任なら <a href="sign/index.html" title="mod eth_twc_sdk::sign"><code>sign</code></a> で署名バンドルを作り <a href="send_transaction/signature_transfer/index.html" title="mod eth_twc_sdk::send_transaction::signature_transfer"><code>send_transaction::signature_transfer</code></a> で送信。<code>msg.sender</code> 送金なら <a href="send_transaction/self_transfer/index.html" title="mod eth_twc_sdk::send_transaction::self_transfer"><code>send_transaction::self_transfer</code></a> を直接呼びます。</li>
+<li><strong>検証</strong> — マイニング後のトランザクションハッシュと <a href="verify/struct.VerifyArgs.html" title="struct eth_twc_sdk::verify::VerifyArgs"><code>VerifyArgs</code></a> で <a href="verify/index.html" title="mod eth_twc_sdk::verify"><code>verify</code></a> を呼び、レシート上の <code>TransferWithCommitmentSent</code> を照合します。</li>
+</ol>
+<p><code>msg.sender</code> で送金して検証する例（TWC が <a href="config/index.html" title="mod eth_twc_sdk::config"><code>config</code></a> に設定済みで、RPC が対応チェーンであること）。</p>
+
+<div class="example-wrap ignore"><a href="#" class="tooltip" title="This example is not tested">ⓘ</a><pre class="rust rust-example-rendered"><code><span class="kw">use </span>alloy::primitives::{address, utils::parse_ether, B256};
+<span class="kw">use </span>alloy::providers::ProviderBuilder;
+<span class="kw">use </span>eth_twc_sdk::{
+    send_transaction::self_transfer,
+    types::SelfSingleTransferArgs,
+    verify,
+    VerifyArgs,
+};
+
+<span class="attr">#[tokio::main]
+</span><span class="kw">async fn </span>main() -&gt; <span class="prelude-ty">Result</span>&lt;(), eth_twc_sdk::SdkError&gt; {
+    <span class="kw">let </span>provider = ProviderBuilder::new().connect_http(<span class="string">"http://127.0.0.1:8545"</span>.parse().unwrap());
+    <span class="kw">let </span>from = <span class="macro">address!</span>(<span class="string">"0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266"</span>);
+    <span class="kw">let </span>token = <span class="macro">address!</span>(<span class="string">"0x5FbDB2315678afecb367f032d93F642f64180aa3"</span>);
+    <span class="kw">let </span>to = <span class="macro">address!</span>(<span class="string">"0x70997970C51812dc3A010C7d01b50e0d17dc79C8"</span>);
+    <span class="kw">let </span>value = parse_ether(<span class="string">"1"</span>).unwrap();
+    <span class="kw">let </span>commitment = B256::ZERO;
+
+    <span class="kw">let </span>args = SelfSingleTransferArgs {
+        token,
+        to,
+        value,
+        commitment,
+    };
+    <span class="kw">let </span>tx_hash = self_transfer::transfer(<span class="kw-2">&amp;</span>provider, from, args).<span class="kw">await</span><span class="question-mark">?</span>;
+
+    verify::verify(
+        <span class="kw-2">&amp;</span>provider,
+        tx_hash,
+        <span class="kw-2">&amp;</span>VerifyArgs {
+            from,
+            token,
+            to,
+            value,
+            commitment,
+        },
+    )
+    .<span class="kw">await</span><span class="question-mark">?</span>;
+    <span class="prelude-val">Ok</span>(())
+}</code></pre></div>
+<p>EIP-712 署名を executor が送信し、同じく検証する例（読み取り用 Provider・署名者・executor 用ウォレット付き Provider）。</p>
+
+<div class="example-wrap ignore"><a href="#" class="tooltip" title="This example is not tested">ⓘ</a><pre class="rust rust-example-rendered"><code><span class="kw">use </span>alloy::network::EthereumWallet;
+<span class="kw">use </span>alloy::primitives::{address, utils::parse_ether, B256};
+<span class="kw">use </span>alloy::providers::ProviderBuilder;
+<span class="kw">use </span>alloy::signers::local::PrivateKeySigner;
+<span class="kw">use </span>eth_twc_sdk::{
+    send_transaction::signature_transfer,
+    sign,
+    types::SingleTransferArgs,
+    verify,
+    VerifyArgs,
+};
+
+<span class="attr">#[tokio::main]
+</span><span class="kw">async fn </span>main() -&gt; <span class="prelude-ty">Result</span>&lt;(), eth_twc_sdk::SdkError&gt; {
+    <span class="kw">let </span>read_provider =
+        ProviderBuilder::new().connect_http(<span class="string">"http://127.0.0.1:8545"</span>.parse().unwrap());
+
+    <span class="kw">let </span>sender: PrivateKeySigner =
+        <span class="string">"0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80"
+            </span>.parse()
+            .unwrap();
+    <span class="kw">let </span>executor: PrivateKeySigner =
+        <span class="string">"0x59c6995e998f97a5a0044966f0945389dc9e86dae88c7a8412f4603b6b78690d"
+            </span>.parse()
+            .unwrap();
+
+    <span class="kw">let </span>token = <span class="macro">address!</span>(<span class="string">"0x5FbDB2315678afecb367f032d93F642f64180aa3"</span>);
+    <span class="kw">let </span>to = <span class="macro">address!</span>(<span class="string">"0x70997970C51812dc3A010C7d01b50e0d17dc79C8"</span>);
+    <span class="kw">let </span>value = parse_ether(<span class="string">"1"</span>).unwrap();
+    <span class="kw">let </span>commitment = B256::ZERO;
+
+    <span class="kw">let </span>signed = sign::single_transfer(
+        <span class="kw-2">&amp;</span>read_provider,
+        <span class="kw-2">&amp;</span>sender,
+        SingleTransferArgs {
+            from: sender.address(),
+            to,
+            token,
+            executor: executor.address(),
+            value,
+            commitment,
+            valid_after: <span class="prelude-val">None</span>,
+            valid_before: <span class="prelude-val">None</span>,
+        },
+    )
+    .<span class="kw">await</span><span class="question-mark">?</span>;
+
+    <span class="kw">let </span>executor_provider = ProviderBuilder::new()
+        .wallet(EthereumWallet::new(executor.clone()))
+        .connect_http(<span class="string">"http://127.0.0.1:8545"</span>.parse().unwrap());
+    <span class="kw">let </span>tx_hash =
+        signature_transfer::single_transfer(<span class="kw-2">&amp;</span>executor_provider, executor.address(), signed).<span class="kw">await</span><span class="question-mark">?</span>;
+
+    verify::verify(
+        <span class="kw-2">&amp;</span>read_provider,
+        tx_hash,
+        <span class="kw-2">&amp;</span>VerifyArgs {
+            from: sender.address(),
+            token,
+            to,
+            value,
+            commitment,
+        },
+    )
+    .<span class="kw">await</span><span class="question-mark">?</span>;
+    <span class="prelude-val">Ok</span>(())
+}</code></pre></div><h3 id="構成"><a class="doc-anchor" href="#構成">§</a>構成</h3><div><table><thead><tr><th>モジュール</th><th>役割</th></tr></thead><tbody>
+<tr><td><a href="config/index.html" title="mod eth_twc_sdk::config"><code>config</code></a></td><td>コントラクトアドレス・対応チェーン ID</td></tr>
+<tr><td><a href="sign/index.html" title="mod eth_twc_sdk::sign"><code>sign</code></a></td><td>EIP-712 署名（<a href="alloy::providers::Provider"><code>Provider</code></a> + <a href="alloy::signers::Signer"><code>Signer</code></a>）</td></tr>
+<tr><td><a href="verify/index.html" title="mod eth_twc_sdk::verify"><code>verify</code></a></td><td>トランザクションレシート上のイベント検証</td></tr>
+<tr><td><a href="send_transaction/self_transfer/index.html" title="mod eth_twc_sdk::send_transaction::self_transfer"><code>send_transaction::self_transfer</code></a></td><td><code>msg.sender</code> による <code>transfer</code></td></tr>
+<tr><td><a href="send_transaction/signature_transfer/index.html" title="mod eth_twc_sdk::send_transaction::signature_transfer"><code>send_transaction::signature_transfer</code></a></td><td>署名付き <code>transferWithAuthorization</code> / <code>cancelAuthorization</code></td></tr>
+<tr><td><a href="types/index.html" title="mod eth_twc_sdk::types"><code>types</code></a></td><td>引数・署名済みバンドル・明細型</td></tr>
+<tr><td><a href="utils/index.html" title="mod eth_twc_sdk::utils"><code>utils</code></a></td><td>チェーン／domain 整合の検証ヘルパ</td></tr>
+<tr><td><a href="events/index.html" title="mod eth_twc_sdk::events"><code>events</code></a></td><td>ログデコード用イベント型</td></tr>
+</tbody></table>
+</div>
+<p>オンチェーン呼び出し・型生成は <strong>alloy</strong> に依存します。</p>
+<h3 id="クイックリンク"><a class="doc-anchor" href="#クイックリンク">§</a>クイックリンク</h3>
+<ul>
+<li>エラー型: <a href="error/enum.SdkError.html" title="enum eth_twc_sdk::error::SdkError"><code>SdkError</code></a></li>
+<li>検証用イベント引数: <a href="verify/struct.VerifyArgs.html" title="struct eth_twc_sdk::verify::VerifyArgs"><code>VerifyArgs</code></a></li>
+</ul>
+<h3 id="ドキュメントの生成"><a class="doc-anchor" href="#ドキュメントの生成">§</a>ドキュメントの生成</h3><div class="example-wrap"><pre class="language-text"><code>cargo doc --no-deps</code></pre></div>
+<p>非公開モジュール（<code>contract</code> など）を含める場合は <code>--document-private-items</code> を付けます。</p>
+</div></details><h2 id="reexports" class="section-header">Re-exports<a href="#reexports" class="anchor">§</a></h2><dl class="item-table reexports"><dt id="reexport.transfer_with_commitment_address"><code>pub use config::<a class="fn" href="config/fn.transfer_with_commitment_address.html" title="fn eth_twc_sdk::config::transfer_with_commitment_address">transfer_with_commitment_address</a>;</code></dt><dt id="reexport.SdkError"><code>pub use error::<a class="enum" href="error/enum.SdkError.html" title="enum eth_twc_sdk::error::SdkError">SdkError</a>;</code></dt><dt id="reexport.SignedBatchTransferWithCommit"><code>pub use types::signed_data::<a class="struct" href="types/signed_data/struct.SignedBatchTransferWithCommit.html" title="struct eth_twc_sdk::types::signed_data::SignedBatchTransferWithCommit">SignedBatchTransferWithCommit</a>;</code></dt><dt id="reexport.SignedCancelAuthorization"><code>pub use types::signed_data::<a class="struct" href="types/signed_data/struct.SignedCancelAuthorization.html" title="struct eth_twc_sdk::types::signed_data::SignedCancelAuthorization">SignedCancelAuthorization</a>;</code></dt><dt id="reexport.SignedTransferWithCommit"><code>pub use types::signed_data::<a class="struct" href="types/signed_data/struct.SignedTransferWithCommit.html" title="struct eth_twc_sdk::types::signed_data::SignedTransferWithCommit">SignedTransferWithCommit</a>;</code></dt><dt id="reexport.SignedUniCommitTransfers"><code>pub use types::signed_data::<a class="struct" href="types/signed_data/struct.SignedUniCommitTransfers.html" title="struct eth_twc_sdk::types::signed_data::SignedUniCommitTransfers">SignedUniCommitTransfers</a>;</code></dt><dt id="reexport.VerifyArgs"><code>pub use verify::<a class="struct" href="verify/struct.VerifyArgs.html" title="struct eth_twc_sdk::verify::VerifyArgs">VerifyArgs</a>;</code></dt><dt id="reexport.TransferWithCommitmentSent"><code>pub use events::<a class="struct" href="events/struct.TransferWithCommitmentSent.html" title="struct eth_twc_sdk::events::TransferWithCommitmentSent">TransferWithCommitmentSent</a>;</code></dt><dt id="reexport.assert_provider_supported_chain"><code>pub use utils::<a class="fn" href="utils/fn.assert_provider_supported_chain.html" title="fn eth_twc_sdk::utils::assert_provider_supported_chain">assert_provider_supported_chain</a>;</code></dt><dt id="reexport.assert_signed_domain_matches_client_and_config"><code>pub use utils::<a class="fn" href="utils/fn.assert_signed_domain_matches_client_and_config.html" title="fn eth_twc_sdk::utils::assert_signed_domain_matches_client_and_config">assert_signed_domain_matches_client_and_config</a>;</code></dt><dt id="reexport.assert_signed_domain_matches_provider_and_config"><code>pub use utils::<a class="fn" href="utils/fn.assert_signed_domain_matches_provider_and_config.html" title="fn eth_twc_sdk::utils::assert_signed_domain_matches_provider_and_config">assert_signed_domain_matches_provider_and_config</a>;</code></dt><dt id="reexport.is_supported_chain"><code>pub use utils::<a class="fn" href="utils/fn.is_supported_chain.html" title="fn eth_twc_sdk::utils::is_supported_chain">is_supported_chain</a>;</code></dt><dt id="reexport.is_supported_chain_id"><code>pub use utils::<a class="fn" href="utils/fn.is_supported_chain_id.html" title="fn eth_twc_sdk::utils::is_supported_chain_id">is_supported_chain_id</a>;</code></dt></dl><h2 id="modules" class="section-header">Modules<a href="#modules" class="anchor">§</a></h2><dl class="item-table"><dt><a class="mod" href="config/index.html" title="mod eth_twc_sdk::config">config</a></dt><dd>コントラクトアドレスと対応チェーン ID。</dd><dt><a class="mod" href="error/index.html" title="mod eth_twc_sdk::error">error</a></dt><dd><a href="error/enum.SdkError.html" title="enum eth_twc_sdk::error::SdkError"><code>SdkError</code></a> — SDK 各 API で返りうるエラー。</dd><dt><a class="mod" href="events/index.html" title="mod eth_twc_sdk::events">events</a></dt><dd>レシート解析用の <code>sol!</code> イベント定義。
+トランザクションレシートのログからイベントをデコードするための定義（コントラクト ABI と同一シグネチャ）。</dd><dt><a class="mod" href="send_transaction/index.html" title="mod eth_twc_sdk::send_transaction">send_<wbr>transaction</a></dt><dd>トランザクション送信（自己送金・署名付き）。
+コントラクトへのトランザクション送信。</dd><dt><a class="mod" href="sign/index.html" title="mod eth_twc_sdk::sign">sign</a></dt><dd>EIP-712 オフチェーン署名。</dd><dt><a class="mod" href="types/index.html" title="mod eth_twc_sdk::types">types</a></dt><dd>送金引数・署名済みバンドル・明細行の型定義。</dd><dt><a class="mod" href="utils/index.html" title="mod eth_twc_sdk::utils">utils</a></dt><dd>チェーン検証および EIP-712 <code>domain</code> と設定アドレスの照合。</dd><dt><a class="mod" href="verify/index.html" title="mod eth_twc_sdk::verify">verify</a></dt><dd>トランザクションレシート上の <code>TransferWithCommitmentSent</code> イベントの取得・検証。</dd></dl><h2 id="structs" class="section-header">Structs<a href="#structs" class="anchor">§</a></h2><dl class="item-table"><dt><a class="struct" href="struct.Address.html" title="struct eth_twc_sdk::Address">Address</a></dt><dd>Ethereum アドレス（<a href="struct.Address.html" title="struct eth_twc_sdk::Address"><code>alloy::primitives::Address</code></a> の再エクスポート）。
+An Ethereum address, 20 bytes in length.</dd><dt><a class="struct" href="struct.Eip712Domain.html" title="struct eth_twc_sdk::Eip712Domain">Eip712<wbr>Domain</a></dt><dd>EIP-712 ドメイン（<a href="struct.Eip712Domain.html" title="struct eth_twc_sdk::Eip712Domain"><code>alloy::sol_types::Eip712Domain</code></a> の再エクスポート）。
+EIP-712 domain attributes used in determining the domain separator.</dd></dl></section></div></main></body></html>

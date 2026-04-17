@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"fn":["batch_transfer_with_commit","cancel_authorization","domain_for_typed_data_sign","single_transfer","uni_commit_transfers"]};

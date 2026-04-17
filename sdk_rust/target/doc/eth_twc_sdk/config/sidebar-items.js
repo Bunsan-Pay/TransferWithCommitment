@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"constant":["SUPPORTED_CHAIN_IDS","TRANSFER_WITH_COMMITMENT_ADDRESS","ZERO_TRANSFER_ADDRESS"],"fn":["assert_transfer_contract_configured","transfer_with_commitment_address"]};

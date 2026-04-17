@@ -1,0 +1,8 @@
+{
+  "private": true,
+  "workspaces": [
+    "sdk_js",
+    "sdk_react",
+    "contracts"
+  ]
+}

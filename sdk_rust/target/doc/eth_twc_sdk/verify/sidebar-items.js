@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"fn":["get_transfer_with_commitment_sent_event_logs","verify"],"struct":["VerifyArgs"]};
