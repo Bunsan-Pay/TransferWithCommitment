@@ -14,7 +14,9 @@ import {
 
 const token = process.env.TOKEN_ADDRESS as Hex | undefined;
 if (!token) {
-  throw new Error("TOKEN_ADDRESS is required (integration run.sh)");
+  throw new Error(
+    "TOKEN_ADDRESS is required (scripts/test-sdk-js-integration.sh)",
+  );
 }
 
 describe("integration: Self-Call（anvil）", () => {

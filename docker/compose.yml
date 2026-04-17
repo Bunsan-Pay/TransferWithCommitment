@@ -1,0 +1,105 @@
+# ホスト側に forge / anvil / bun / cargo / slither を一切インストールせずに
+# CI 相当と結合テストを実行するための compose 定義。
+# 実行例は scripts/*.sh を参照。
+#
+# Compose プロジェクト名（ボリューム・ネットワーク名のプレフィックス）は
+# `COMPOSE_PROJECT_NAME` 環境変数、または `docker compose -p <name>` で
+# 明示的に指定できる。未指定時は compose ファイルのあるディレクトリ名
+# （`docker`）がプロジェクト名となる。
+
+services:
+  anvil:
+    build:
+      # build.context を docker/entrypoints/ に限定することで、
+      # Docker daemon へ送る build context を数百 KB に抑える（以前は ~900 MB）。
+      # ソースツリーはランタイムで bind mount するのでコンテキストに含める必要がない。
+      context: ./entrypoints
+      dockerfile: ../images/foundry-slither.Dockerfile
+    image: foundry-slither:local
+    working_dir: /work/contracts
+    command: ["anvil", "--host", "0.0.0.0", "--port", "8545"]
+    volumes:
+      - ..:/work
+      - forge-cache:/work/contracts/cache
+      - forge-out:/work/contracts/out
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "cast block-number --rpc-url http://127.0.0.1:8545 >/dev/null 2>&1",
+        ]
+      interval: 2s
+      timeout: 3s
+      retries: 30
+
+  contracts-ci:
+    build:
+      context: ./entrypoints
+      dockerfile: ../images/foundry-slither.Dockerfile
+    image: foundry-slither:local
+    working_dir: /work/contracts
+    environment:
+      FOUNDRY_PROFILE: ci
+    volumes:
+      - ..:/work
+      - forge-cache:/work/contracts/cache
+      - forge-out:/work/contracts/out
+    entrypoint: ["bash", "/opt/entrypoints/contracts-ci.sh"]
+
+  slither:
+    build:
+      context: ./entrypoints
+      dockerfile: ../images/foundry-slither.Dockerfile
+    image: foundry-slither:local
+    working_dir: /work/contracts
+    volumes:
+      - ..:/work
+      - forge-cache:/work/contracts/cache
+      - forge-out:/work/contracts/out
+    entrypoint: ["bash", "/opt/entrypoints/slither-report.sh"]
+
+  sdk-js-integration:
+    build:
+      context: ./entrypoints
+      dockerfile: ../images/sdk-js.Dockerfile
+    image: sdk-js-integration:local
+    working_dir: /work/sdk_js
+    environment:
+      RPC_URL: "http://anvil:8545"
+    depends_on:
+      anvil:
+        condition: service_healthy
+    volumes:
+      - ..:/work
+      - forge-cache:/work/contracts/cache
+      - forge-out:/work/contracts/out
+      - bun-root-modules:/work/node_modules
+      - bun-sdk-js-modules:/work/sdk_js/node_modules
+      - bun-contracts-modules:/work/contracts/node_modules
+    entrypoint: ["bash", "/opt/entrypoints/sdk-js-integration.sh"]
+
+  sdk-rust-integration:
+    build:
+      context: ./entrypoints
+      dockerfile: ../images/sdk-rust.Dockerfile
+    image: sdk-rust-integration:local
+    working_dir: /work/sdk_rust
+    environment:
+      RPC_URL: "http://anvil:8545"
+    depends_on:
+      anvil:
+        condition: service_healthy
+    volumes:
+      - ..:/work
+      - forge-cache:/work/contracts/cache
+      - forge-out:/work/contracts/out
+      - cargo-target:/work/sdk_rust/target
+    entrypoint: ["bash", "/opt/entrypoints/sdk-rust-integration.sh"]
+
+volumes:
+  forge-cache: {}
+  forge-out: {}
+  bun-root-modules: {}
+  bun-sdk-js-modules: {}
+  bun-contracts-modules: {}
+  cargo-target: {}

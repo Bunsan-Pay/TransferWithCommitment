@@ -15,19 +15,21 @@ bun run test
 
 ## 結合（`integration/`）
 
-Anvil を起動し、Foundry で `TransferWithCommitment`（`forge script` の `TransferWithCommitmentScript`）と `ERC20Mock`（`forge create --broadcast`）をデプロイしたあと、環境変数経由でアドレスを渡して SDK を実行する。**本番 `config` の `supportedChains` には Anvil（chain id 31337）が含まれない**ため、`integration/preload.ts` が `config` をモックし、`supportedChains: [anvil]`（viem の `anvil` チェーン定義）とデプロイ済みの `TWC_ADDRESS` を注入する。
+docker compose（リポジトリルートの [`docker/compose.yml`](../../docker/compose.yml)）で `anvil` サービスを起動し、`forge script`（`TransferWithCommitmentScript`）と `forge create`（`ERC20Mock`）でデプロイした後、環境変数経由でアドレスを渡して SDK を実行する。**本番 `config` の `supportedChains` には Anvil（chain id 31337）が含まれない**ため、`integration/preload.ts` が `config` をモックし、`supportedChains: [anvil]`（viem の `anvil` チェーン定義）とデプロイ済みの `TWC_ADDRESS` を注入する。
 
-| 変数（`run.sh` が設定） | 意味 |
-|------------------------|------|
+| 変数（エントリポイントが設定） | 意味 |
+|-------------------------------|------|
 | `TWC_ADDRESS` | デプロイ済み `TransferWithCommitment` |
 | `TOKEN_ADDRESS` | デプロイ済み `ERC20Mock` |
-| `RPC_URL` | 既定 `http://127.0.0.1:8545`（`ANVIL_PORT` でポート変更可） |
+| `RPC_URL` | 既定 `http://anvil:8545`（compose ネットワーク内のサービス名） |
 
-前提: PATH に **`anvil`** と **`forge`**（Foundry）があること。`forge` は `--root` にリポジトリの `contracts/` を指定してビルド成果物を解決する。
+前提: ホストに必要なのは **`docker` と `docker compose`（v2）のみ**。`anvil` / `forge` / `bun` などはすべてコンテナ内で解決される。
 
 ```bash
+# sdk_js/ から
 bun run test:integration
-# 実体: bash test/integration/run.sh
+# 実体: bash ../scripts/test-sdk-js-integration.sh
+# ルートから直接呼んでも同じ: ./scripts/test-sdk-js-integration.sh
 ```
 
 シーケンスはリポジトリルート `README.md` の **Self-Call** / **Delegate to Executor** に対応するケースが `selfCall.test.ts` / `signatureDelegate.test.ts` にある。

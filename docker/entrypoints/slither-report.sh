@@ -1,12 +1,10 @@
 #!/usr/bin/env bash
-# 監査提出用: Slither の結果を audit/slither/ に保存する。
-# 使い方: ./scripts/slither-report.sh   （リポジトリルートからでも可）
-# Slither 例: uv tool install slither-analyzer（~/.local/bin を PATH に）
+# コンテナ内で Slither の監査提出用バンドルを生成する。
+# 結果は bind mount 経由で contracts/audit/slither/ に保存される。
 set -euo pipefail
 
-ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-cd "$ROOT"
-OUT_DIR="${ROOT}/audit/slither"
+cd /work/contracts
+OUT_DIR="/work/contracts/audit/slither"
 mkdir -p "$OUT_DIR"
 
 echo "==> forge build"
@@ -65,7 +63,7 @@ if [[ "${SLITHER_EXIT}" -ne 0 ]]; then
   echo ""
   echo "注意: Slither が非ゼロで終了しました（検出あり、または警告）。レポートは保存済みです。"
   # 監査バンドル生成自体は完了しているため、既定では 0 で終了（CI / 手元の再実行でアーティファクト保存しやすくする）
-  # 厳密に Slither の終了コードを返したい場合: STRICT_SLITHER_EXIT=1 ./scripts/slither-report.sh
+  # 厳密に Slither の終了コードを返したい場合: -e STRICT_SLITHER_EXIT=1
   if [[ "${STRICT_SLITHER_EXIT:-0}" == "1" ]]; then
     exit "${SLITHER_EXIT}"
   fi

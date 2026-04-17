@@ -8,7 +8,7 @@ import { anvil } from "viem/chains";
 const addr = process.env.TWC_ADDRESS;
 if (!addr || !/^0x[0-9a-fA-F]{40}$/.test(addr)) {
   throw new Error(
-    "integration preload: set TWC_ADDRESS to deployed TransferWithCommitment (run test/integration/run.sh)",
+    "integration preload: set TWC_ADDRESS to deployed TransferWithCommitment (run scripts/test-sdk-js-integration.sh)",
   );
 }
 

@@ -8,7 +8,7 @@ license = "MIT OR Apache-2.0"
 [features]
 # 単体テストで `TRANSFER_WITH_COMMITMENT_ADDRESS` を非ゼロにする。
 test-config = []
-# Anvil 結合テスト: `ETH_TWC_CONTRACT_ADDRESS` とチェーン 31337（`test/integration/run.sh`）。
+# Anvil 結合テスト: `ETH_TWC_CONTRACT_ADDRESS` とチェーン 31337（`scripts/test-sdk-rust-integration.sh`）。
 integration-test = []
 
 [dependencies]

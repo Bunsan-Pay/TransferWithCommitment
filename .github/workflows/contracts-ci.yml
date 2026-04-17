@@ -1,5 +1,7 @@
-# Git のルートがモノレポの親ディレクトリのとき、Foundry プロジェクトは contracts/ 配下にある。
-# GitHub はリポジトリルートの .github/workflows/ しか読まないため、このファイルを親に置く。
+# モノレポの親に .github/workflows があるため、contracts/ 配下を対象にする。
+# ホスト runner に forge / slither を直接インストールするのではなく、
+# リポジトリに含まれる docker/compose.yml のサービスを通じて実行する
+# （ローカルの ./scripts/ci-contracts.sh / ./scripts/slither.sh と同一フロー）。
 name: Contracts CI
 
 permissions: {}
@@ -8,23 +10,20 @@ on:
   push:
     paths:
       - "contracts/**"
+      - "docker/**"
+      - "scripts/**"
       - ".github/workflows/contracts-ci.yml"
   pull_request:
     paths:
       - "contracts/**"
+      - "docker/**"
+      - "scripts/**"
       - ".github/workflows/contracts-ci.yml"
   workflow_dispatch:
 
-env:
-  FOUNDRY_PROFILE: ci
-
-defaults:
-  run:
-    working-directory: contracts
-
 jobs:
   check:
-    name: Foundry project
+    name: Foundry project (docker compose)
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -34,23 +33,11 @@ jobs:
           persist-credentials: false
           submodules: recursive
 
-      - name: Install Foundry
-        uses: foundry-rs/foundry-toolchain@v1
-
-      - name: Show Forge version
-        run: forge --version
-
-      - name: Run Forge fmt
-        run: forge fmt --check
-
-      - name: Run Forge build
-        run: forge build --sizes
-
-      - name: Run Forge tests
-        run: forge test -vvv
+      - name: Run contracts-ci service
+        run: docker compose -f docker/compose.yml run --rm --build contracts-ci
 
   slither:
-    name: Slither (audit bundle)
+    name: Slither (audit bundle, docker compose)
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -61,21 +48,8 @@ jobs:
           persist-credentials: false
           submodules: recursive
 
-      - name: Install Foundry
-        uses: foundry-rs/foundry-toolchain@v1
-
-      - name: Install uv
-        uses: astral-sh/setup-uv@v5
-        with:
-          version: "latest"
-
-      - name: Install Slither
-        run: |
-          uv tool install slither-analyzer
-          echo "$HOME/.local/bin" >> "$GITHUB_PATH"
-
-      - name: Generate Slither report bundle
-        run: chmod +x scripts/slither-report.sh && ./scripts/slither-report.sh
+      - name: Run slither service
+        run: docker compose -f docker/compose.yml run --rm --build slither
 
       - name: Upload Slither artifacts
         uses: actions/upload-artifact@v4

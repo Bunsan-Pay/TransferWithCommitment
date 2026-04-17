@@ -192,3 +192,17 @@ sequenceDiagram
     Contract-->>-Verifier: Done
     Verifier-->>-Sender: Done
 ```
+
+## Development
+
+ローカルの CI 再現と SDK 結合テストは、すべてリポジトリルートの [`docker/compose.yml`](docker/compose.yml) が提供する隔離コンテナで実行する。ホスト側の必要要件は **`docker` + `docker compose`（v2）のみ** で、`forge` / `anvil` / `cast` / `slither` / `bun` / `cargo` / `python` / `uv` などのホストインストールは不要。
+
+| 目的 | コマンド |
+|------|---------|
+| contracts の CI（forge fmt/build/test + slither） | `./scripts/ci-contracts.sh` |
+| Slither 監査バンドルのみ | `./scripts/slither.sh` |
+| sdk_js 結合テスト（anvil + デプロイ + bun test） | `./scripts/test-sdk-js-integration.sh` |
+| sdk_rust 結合テスト（anvil + デプロイ + cargo test） | `./scripts/test-sdk-rust-integration.sh` |
+| キャッシュ・ボリュームを全て破棄 | `docker compose -f docker/compose.yml down -v` |
+
+GitHub Actions（[.github/workflows/contracts-ci.yml](.github/workflows/contracts-ci.yml)）も同じ compose サービスを呼び出すため、ローカルと CI のフローは一致する。

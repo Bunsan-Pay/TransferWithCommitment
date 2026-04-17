@@ -1,6 +1,7 @@
 //! Anvil + `contracts` デプロイに対する結合テスト。
 //!
-//! `test/integration/run.sh` から `cargo test --features integration-test --test anvil_integration` で実行。
+//! `scripts/test-sdk-rust-integration.sh`（docker compose ベース）から
+//! `cargo test --features integration-test --test anvil_integration` で実行。
 
 #![cfg(feature = "integration-test")]
 
@@ -31,20 +32,20 @@ const ANVIL_EXECUTOR_KEY: &str = "0x59c6995e998f97a5a0044966f0945389dc9e86dae88c
 
 fn env_addr(name: &'static str) -> Address {
     std::env::var(name)
-        .unwrap_or_else(|_| panic!("{name} is required (run sdk_rust/test/integration/run.sh)"))
+        .unwrap_or_else(|_| panic!("{name} is required (run scripts/test-sdk-rust-integration.sh)"))
         .parse()
         .expect("invalid address")
 }
 
 fn rpc_url() -> Url {
     std::env::var("RPC_URL")
-        .expect("RPC_URL is required (run sdk_rust/test/integration/run.sh)")
+        .expect("RPC_URL is required (run scripts/test-sdk-rust-integration.sh)")
         .parse()
         .expect("invalid RPC_URL")
 }
 
 #[tokio::test]
-#[ignore = "Anvil + forge デプロイが必要。sdk_rust/test/integration/run.sh を実行"]
+#[ignore = "Anvil + forge デプロイが必要。scripts/test-sdk-rust-integration.sh を実行"]
 async fn integration_self_call_mint_approve_transfer_verify() {
     let url = rpc_url();
     let token = env_addr("TOKEN_ADDRESS");
@@ -108,7 +109,7 @@ async fn integration_self_call_mint_approve_transfer_verify() {
 }
 
 #[tokio::test]
-#[ignore = "Anvil + forge デプロイが必要。sdk_rust/test/integration/run.sh を実行"]
+#[ignore = "Anvil + forge デプロイが必要。scripts/test-sdk-rust-integration.sh を実行"]
 async fn integration_delegate_executor_sign_send_verify() {
     let url = rpc_url();
     let token = env_addr("TOKEN_ADDRESS");

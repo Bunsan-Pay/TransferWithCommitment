@@ -25,23 +25,25 @@
 
 ## Development
 
-### CI をローカルで再現
+### CI をローカルで再現（docker compose）
 
-**モノレポ**（Git のルートが親で、`foundry.toml` はこの `contracts/` にだけある）の場合、GitHub Actions の定義は **リポジトリルート**の `.github/workflows/contracts-ci.yml` にあり、`contracts/` を `working-directory` にして実行する。
-
-手元で同じ手順をまとめたスクリプト（このディレクトリから実行）:
+ホストに `forge` / `slither` / `python` / `uv` を直接インストールする代わりに、
+リポジトリルートの [`docker/compose.yml`](../docker/compose.yml) が提供する隔離コンテナ上で
+`.github/workflows/contracts-ci.yml` と同一の手順を実行する。
 
 ```shell
-$ chmod +x scripts/ci-local.sh
-$ ./scripts/ci-local.sh
+# リポジトリルートから:
+$ ./scripts/ci-contracts.sh                 # forge fmt/build/test + slither
+$ SKIP_SLITHER=1 ./scripts/ci-contracts.sh  # Foundry ジョブのみ
+$ ./scripts/slither.sh                      # Slither 監査バンドルのみ
 ```
 
-- **前提**: `forge`、[uv](https://docs.astral.sh/uv/getting-started/installation/)（Slither ジョブ用）
-- Slither まで試さず Foundry のみ: `SKIP_SLITHER=1 ./scripts/ci-local.sh`
+- **前提**: `docker` と `docker compose`（v2）のみ。`forge` / `anvil` / `cast` / `slither` / `python` / `uv` などはすべてコンテナ内で解決される。
+- Slither のレポートは bind mount 経由で `contracts/audit/slither/` に出力される。
+- ビルド済みイメージは `foundry-slither:local`・`sdk-js-integration:local`・`sdk-rust-integration:local` のタグで再利用され、2 回目以降の起動は高速化される。
+- キャッシュとボリュームを完全にクリーンする場合: `docker compose -f docker/compose.yml down -v`。
 
-ルートから実行する例: `./contracts/scripts/ci-local.sh`
-
-YAML そのものを Docker で動かす場合は [nektos/act](https://github.com/nektos/act)（リポジトリルートで `act -j check -W .github/workflows/contracts-ci.yml` など）も利用できる。
+GitHub Actions 側（[.github/workflows/contracts-ci.yml](../.github/workflows/contracts-ci.yml)）も同じ compose サービスを呼び出すため、ローカルと CI のフローは完全に同じ。
 
 ### Build
 
@@ -81,10 +83,11 @@ $ forge script script/TransferWithCommitment.s.sol:TransferWithCommitmentScript 
 
 ### Slither（監査提出用レポート）
 
-依存: [Slither](https://github.com/crytic/slither) を PATH に入れる（例: [uv](https://docs.astral.sh/uv/) で `uv tool install slither-analyzer`。`~/.local/bin` を PATH に含める）。
+Slither はリポジトリルートの [`docker/compose.yml`](../docker/compose.yml) が提供する隔離コンテナ内で実行する（ホスト側の Python / uv / slither インストールは不要）。
 
 ```shell
-$ ./scripts/slither-report.sh
+# リポジトリルートから:
+$ ./scripts/slither.sh
 ```
 
 結果は `audit/slither/` に保存（`audit/slither/README.md` 参照）。リポジトリルートの `.github/workflows/contracts-ci.yml` の **Slither** ジョブでも同バンドルを Artifact として保存できます。
