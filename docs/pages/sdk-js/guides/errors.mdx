@@ -1,0 +1,58 @@
+---
+title: エラーと切り分け
+description: eth-twc-sdk-js 利用時に起きがちな例外と確認手順。
+---
+
+# エラーと切り分け
+
+SDK は多くの箇所で **`throw new Error(...)`** を使います（`verify` の arktype 以外は主に通常の `Error`）。
+
+## 設定・チェーン
+
+| 症状 | 確認 |
+| --- | --- |
+| `… is not configured`（ゼロアドレス・統合テスト専用ビルド） | 通常の npm 版は CREATE2 決定論アドレスを埋め込み。カスタム fork でゼロのままにしている場合 |
+| `TransferWithCommitment is not deployed at …` | 接続チェーンの canonical アドレスにコードがない。`contracts/TWC_CREATE2.md` の手順でデプロイするか、ネットワークを切り替え |
+| `Chain is not set on public client` / `… wallet client` | viem / wagmi で `chain` がクライアントに載っていない |
+
+## 署名（`sign`）
+
+| 症状 | 確認 |
+| --- | --- |
+| `Signer account … does not match … from` | `account` 引数と `args.from` が同一アドレスか（実装は **小文字化して比較**。表示上は同一チェックサムであることが望ましい） |
+| `getEip712Domain` 周りの失敗 | RPC エラー、コントラクトが EIP-5267 を実装しているか |
+
+## Executor 経由（`signatureTransfer`）
+
+| 症状 | 確認 |
+| --- | --- |
+| `Signed data domain.chainId does not match client chain id` | 署名時と送信時でチェーンが違う／バンドルが別環境のもの |
+| `Signed data domain.verifyingContract does not match` | 別デプロイのコントラクト向け署名 |
+| シミュレーションでコントラクト revert | allowance、時間窓 `validAfter`/`validBefore`、署名、`executor` の不一致など |
+
+## 検証（`verify`）
+
+| 症状 | 確認 |
+| --- | --- |
+| arktype のメッセージ | `from`/`to`/`token` の形式、`value` / `commitment` の範囲 |
+| `TransferWithCommitmentSent event not found` | Tx が別コントラクト、パラメータ期待が違う、ログがフェッチできていない |
+
+## RPC への依存
+
+`verify` と `getTransferWithCommitmentSentEventLogs` は **RPC が返したレシート**に完全に依存します。信頼できるエンドポイントと、十分なブロック確認を運用で確保してください。
+
+**例**: `assertPublicWalletSameChain` 周りの失敗を捕捉する（メッセージの一部は [utils](/sdk-js/api/utils) 参照）。
+
+```typescript
+import {
+  assertPublicWalletSameChain,
+} from "eth-twc-sdk-js/utils";
+
+try {
+  assertPublicWalletSameChain(publicClient, walletClient);
+} catch (e) {
+  console.error("chain guard:", e);
+}
+```
+
+`signatureTransfer` / `sign` は **ドメイン整合**を内部で行います。`verifyingContract` やチェーンの食い違いは **上表「Executor 経由」**のメッセージを参照し、**署名時と送信時で同じ RPC・同じ npm 版**かを確認してください。

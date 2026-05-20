@@ -1,0 +1,40 @@
+---
+title: React SDK
+description: eth-twc-sdk-react — wagmi と TanStack Query 上の公式フック。
+---
+
+# `eth-twc-sdk-react`
+
+`eth-twc-sdk-js` のReact hooksです。
+
+[wagmi v3](https://wagmi.sh/) と [TanStack Query v5](https://tanstack.com/query) を利用しています。
+
+## JS 側で先に読むとよいもの
+
+フックは JS SDK をそのまま呼ぶため、次は React 以外の読者とも共通の前提になります。
+
+- [Commitment の生成（JS）](/sdk-js/guides/commitment)、[EIP-712 domain とゼロ salt](/sdk-js/guides/eip712-domain-salt)、[Off-chain verification の限界](/sdk-js/guides/verification-limits)、[エラーと切り分け](/sdk-js/guides/errors)
+
+## すべて `use client`
+
+フック実装ファイルは **`"use client"`** が付いており、Next.js App Router などでは **クライアントコンポーネント内**で import してください。
+
+## 責務の割り振り
+
+| 層                    | 役割                                                                                                        |
+| --------------------- | ----------------------------------------------------------------------------------------------------------- |
+| **あなたのアプリ**    | `WagmiProvider` + `QueryClientProvider`、ルーティング、UI                                                   |
+| **eth-twc-sdk-react** | `usePublicClient` / `useWalletClient` / `useConnection` を読み、**JS SDK の関数を mutation/query に束ねる** |
+| **eth-twc-sdk-js**    | 実際の RPC・署名・シミュレーション                                                                          |
+
+プロトコル全体の図解・要件は **[Architecture](/architecture)** と **[Contracts](/contracts)** を先に読むと、各フックの前提が掴みやすいです。
+
+## 読み方
+
+1. [Providers をセットアップする](/sdk-react/guides/providers-setup)
+2. 実践: [Tutorial: Self-Call](/sdk-react/guides/tutorial-self-call)、[Tutorial: EIP-712 + Executor](/sdk-react/guides/tutorial-signature-executor)（[一覧](/sdk-react/guides/tutorial)）
+3. [フック完全リファレンス](/sdk-react/api/hooks)
+
+## エクスポートの再エクスポート
+
+[`transferWithCommitmentAddress` などの定数](/sdk-js/api/config) は React パッケージからも再エクスポートされます。内部定数の意味は [Contributing: JS 内部 API](/contributing/sdk-js-internals)（利用者の編集は不要）。

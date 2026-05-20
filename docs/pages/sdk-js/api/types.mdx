@@ -1,0 +1,73 @@
+---
+title: 型・arktype・スカラー
+description: eth-twc-sdk-js の型モジュールと検証ルールの総まとめ。
+---
+
+# 型と arktype
+
+## `types/utils.ts` — スカラー（共有）
+
+| 名前          | 意味                                                   |
+| ------------- | ------------------------------------------------------ |
+| `UINT256_MAX` | `2n**256n - 1n`                                        |
+| `uint256`     | `0n` 以上 `UINT256_MAX` 以下の `bigint` のみ           |
+| `address`     | `/^0x[0-9a-fA-F]{40}$/`                                |
+| `bytes32`     | `/^0x[0-9a-fA-F]{64}$/`                                |
+| `bytes`       | `/^0x[0-9a-fA-F]+$/`（長さは緩い — ERC-1271 等を考慮） |
+| `Hex0x`       | 上記に付くブランド型                                   |
+
+---
+
+## `types/transferDetail` — 明細行スキーマ
+
+Self-Call（`details`）と EIP-712 経路で共通です。インポート: `eth-twc-sdk-js/types/transferDetail`。
+
+| 名前 | 意味 |
+| --- | --- |
+| `transferDetail` | `to`, `token`, `value` |
+| `committedTransferDetail` | 上記 + `commitment` |
+
+---
+
+## `signatureTransfer/*/types.ts` — 署名入力と署名済みバンドル
+
+各 variant で **`argsSchema`**（署名直前入力）と **`signedDataSchema`**（オフチェーン転送ペイロード）が export されます。**`Signed*`** は `signedDataSchema` の **`infer`** と同一。`domain.salt` は [ゼロ salt の扱い](/sdk-js/guides/eip712-domain-salt) により無いことがあります。
+
+| Import パス | 入力型 (`argsSchema`) | 署名済み型 (`signedDataSchema` 由来) |
+| --- | --- | --- |
+| `signatureTransfer/single` | `SignatureTransferSingleArgs` — `.inferIn`（`validAfter` / `validBefore` 省略可、デフォルト `0n` / `UINT256_MAX`） | `SignedSingleTransfer` |
+| `signatureTransfer/unified` | `SignatureTransferUnifiedArgs` — `details.length >= 1`、時間窓同上 | `SignedUnifiedTransfer`（EIP-712 では `UniCommitTransfers`） |
+| `signatureTransfer/batch` | `SignatureTransferBatchArgs` — `batchCommitment` 必須、`details.length >= 1` | `SignedBatchTransfer` |
+| `signatureTransfer/cancelAuthorization` | `CancelAuthorizationArgs` | `SignedCancelAuthorization` |
+
+オフチェーンで JSON などを受け取る場合は、送信前に **`signedDataSchema.assert`** で検証してください。
+
+---
+
+## `selfTransfer/*/types.ts` — Self-Call 入力
+
+| Import パス | 備考 |
+| --- | --- |
+| `selfTransfer/single` | `SelfTransferSingleArgs` — `token`, `to`, `value`, `commitment` |
+| `selfTransfer/unified` | `SelfTransferUnifiedArgs` — `details` + `commitment`。**長さ下限は検証しない**（空だとコントラクト側で revert しうる） |
+| `selfTransfer/batch` | `SelfTransferBatchArgs` — `details` のみ。同上で長さ下限なし |
+
+---
+
+## `verify` — レシート検証入力
+
+- **`verifyArgsSchema`** — arktype（`verify` に先に適用される）
+- **`VerifyArgs`** — TypeScript 型
+
+単一送金イベント形にのみ対応（`executor` は含まない）。詳細は [verify モジュール](/sdk-js/api/verify)。
+
+---
+
+## `signatureTransfer/*/eip712Types.ts`
+
+各 variant の **`eip712Types`** は、`wallet.signTypedData` の **`types`** オブジェクトです（ファイル名ごとに 1 variant）。
+
+- `signatureTransfer/single` — primary `TransferWithCommit`
+- `signatureTransfer/unified` — `UniCommitTransfers` + `TransferDetail`
+- `signatureTransfer/batch` — `BatchTransferWithCommit` + `CommittedTransferDetail`
+- `signatureTransfer/cancelAuthorization` — `CancelAuthorization`

@@ -1,6 +1,6 @@
 import { renderHook, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, test } from "bun:test";
-import type { SignedTransferWithCommit } from "eth-twc-sdk-js/types/signedData";
+import type { SignedSingleTransfer } from "eth-twc-sdk-js/signatureTransfer/single";
 import type { Hex } from "viem";
 
 import {
@@ -48,8 +48,11 @@ describe("useSendAuthorized* / useSendCancelAuthorization", () => {
 
   test("sdk_js: config ゼロでは assert が失敗", async () => {
     setSdkConfigAddressZero();
-    const { publicClient, walletClient } = stubClientsSignatureSendSuccess();
-    wagmiState.publicClient = publicClient;
+    const { publicClient: pc, walletClient } = stubClientsSignatureSendSuccess();
+    wagmiState.publicClient = stubPublicClient({
+      simulateContract: pc.simulateContract,
+      getCode: async () => "0x",
+    });
     wagmiState.walletClient = walletClient;
     wagmiState.address = ADDR as Hex;
 
@@ -60,7 +63,7 @@ describe("useSendAuthorized* / useSendCancelAuthorization", () => {
     result.current.mutate(minimalSignedSingleTransfer());
     await waitFor(() => expect(result.current.isError).toBe(true));
     expect(result.current.error?.message).toMatch(
-      /not configured \(zero address\)/,
+      /not deployed at/,
     );
   });
 
@@ -186,7 +189,7 @@ describe("useSendAuthorized* / useSendCancelAuthorization", () => {
     const { result } = renderHook(() => useSendAuthorizedSingleTransfer(), {
       wrapper: createQueryWrapper(qc),
     });
-    result.current.mutate(wrongSigned as SignedTransferWithCommit);
+    result.current.mutate(wrongSigned as SignedSingleTransfer);
     await waitFor(() => expect(result.current.isError).toBe(true));
     expect(result.current.error?.message).toMatch(
       /domain\.chainId .* does not match client chain id/,

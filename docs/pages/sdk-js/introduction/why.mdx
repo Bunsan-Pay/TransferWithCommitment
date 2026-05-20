@@ -1,0 +1,34 @@
+---
+title: Why — JS SDK
+description: eth-twc-sdk-js が目指すことと、やらないこと。
+---
+
+# Why（目的と境界）
+
+## この SDK がする 3 つのこと
+
+1. **viem と同じ開発体験**で、`TransferWithCommitment` に型付きアクセスする。
+2. **EIP-712 署名**を、**オンチェーンの `eip712Domain()`** と矛盾しない形で取得する（ゼロ `salt` の除去など）。
+3. **オフチェーン検証**の入口として、RPC レシートから `TransferWithCommitmentSent` を取り、**期待パラメータと突き合わせる**。
+
+## 意図的にやらないこと
+
+| やらないこと | 理由 |
+| --- | --- |
+| `commitment` の生成ヘルパ | アプリのスキームとハッシュ選択を固定したくない |
+| ランタイムの環境変数だけで TWC アドレス変更 | 公開 API はない。アプリは **インストールしたパッケージに焼き込まれた定数**を使う。埋め込み作業は [Contributing: JS リリース](/contributing/sdk-js-release)（コントリビュータ向け）または fork／パッチ |
+| チェーン allowlist | **持たない**。任意チェーンで canonical TWC がデプロイされていれば利用可。未デプロイは `eth_getCode` で検出 |
+| ルートからの一括 import | バンドル境界と依存を明確にする |
+
+## ドキュメントの読み方
+
+- **実践**: [Self-Call チュートリアル](/sdk-js/guides/tutorial-self-call)、[Executor チュートリアル](/sdk-js/guides/tutorial-signature-executor)
+- **全部の API**: [exports](/sdk-js/api/exports) から各モジュールページへ
+
+### 章内の主なページ
+
+| カテゴリ | リンク |
+| --- | --- |
+| 導入 | [インストール](/sdk-js/introduction/installation) · [Getting started](/sdk-js/introduction/getting-started) · [互換性](/sdk-js/introduction/compatibility) · [FAQ](/sdk-js/introduction/faq) |
+| ガイド | [commitment](/sdk-js/guides/commitment) · [シナリオと実装手順（Architecture）](/architecture/sequences#シナリオと実装手順) · [検証の限界](/sdk-js/guides/verification-limits) · [errors](/sdk-js/guides/errors) |
+| API | [sign](/sdk-js/api/sign) · [送金（Self/署名）](/sdk-js/api/self-transfer) / [signature-transfer](/sdk-js/api/signature-transfer) · [verify](/sdk-js/api/verify) · [types](/sdk-js/api/types) |

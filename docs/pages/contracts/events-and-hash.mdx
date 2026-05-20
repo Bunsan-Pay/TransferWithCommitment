@@ -1,0 +1,33 @@
+---
+title: Events と Hash
+description: TransferWithCommitmentSent・AllowanceNotEnough・Hash.sol。
+---
+
+# Events と Hash
+
+## `Events.sol`
+
+### `TransferWithCommitmentSent(from, to, token, value, commitment)`
+
+送金が成功したあと発行され、**送金者・受取人・トークン・数量・commitment** をログに残します。オフチェーン検証は主にこのイベントを対象にします。
+
+### `AllowanceNotEnough(token, from, value)`
+
+`from` が本コントラクトに対して **`value` 以上の allowance** を持たないときに revert で用いられます。
+
+## `Hash.sol`
+
+EIP-712 の **TypeHash** と、明細行の **エンコード＋ハッシュ**を担当します。
+
+| 関数 | 可視性 | 役割の要約 |
+| --- | --- | --- |
+| `hashTransferDetail` | `internal` | 単一 `TransferDetail` のハッシュ（`keccak256(abi.encode(...))`） |
+| `hashBatchTransferDetails` | `internal` | Uni 用に明細配列を折り畳み |
+| `hashCommittedTransferDetail` | `internal` | 行ごとに commitment を含む明細のハッシュ |
+| `hashBatchCommittedTransferDetails` | `internal` | バッチ用に折り畳み |
+
+`SignatureTransfer` はこれらを **`transferWithAuthorization` の digest 計算**に利用します。
+
+---
+
+> struct・event・error の全フィールド定義は [Reference: 共有型定義](/contracts/reference/types)、Hash 関数の詳細は [Reference: Hash](/contracts/reference/hash) を参照。

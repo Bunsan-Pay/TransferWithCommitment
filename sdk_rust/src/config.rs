@@ -1,16 +1,10 @@
-//! コントラクトアドレスと対応チェーン ID。
+//! コントラクトアドレスと CREATE2 / EIP-712 の固定パラメータ。
 //!
-//! **デプロイ先アドレスは通常ソース上の定数**です（ランタイムの環境変数差し替え API はありません）。
+//! **デプロイ先アドレス**は EIP-2470 Singleton Factory による CREATE2 の決定論アドレスです（`contracts/TWC_CREATE2.md` 参照）。
 //!
 //! `integration-test` フィーチャー有効時のみ、[`transfer_with_commitment_address`] が環境変数 `ETH_TWC_CONTRACT_ADDRESS` を参照します（Anvil 結合テスト用）。
 //!
-//! ## 本番・通常ビルド（管理者向け）
-//!
-//! 通常ビルドでは実アドレスは **非公開の `COMPILE_TIME_TWC`** で決まります。[`transfer_with_commitment_address`] は
-//! `integration-test` 以外ではそれをそのまま返し、[`TRANSFER_WITH_COMMITMENT_ADDRESS`] は同じ値のコンパイル時定数です（関数が定数を読むわけではなく、いずれも同一ソースから派生します）。
-//!
-//! 既定（`test-config` なし）ではゼロアドレスのままです。**運用では `config.rs` 内の `COMPILE_TIME_TWC` の
-//! `not(test-config)` ブランチを、デプロイ済みコントラクトの `address!("0x…")` に差し替えてからビルドしてください。**
+//! `test-config` 有効時は単体テスト用の固定アドレスになります。
 
 #[cfg(feature = "integration-test")]
 use std::sync::OnceLock;
@@ -20,6 +14,12 @@ use alloy::primitives::{address, Address};
 /// 未設定を表すゼロアドレス。
 pub const ZERO_TRANSFER_ADDRESS: Address = address!("0x0000000000000000000000000000000000000000");
 
+/// 既定 EIP-712 `name`（`TransferWithCommitment` コンストラクタと一致させる）。
+pub const EIP712_DOMAIN_NAME: &str = "TransferWithCommitment";
+
+/// 既定 EIP-712 `version`。
+pub const EIP712_DOMAIN_VERSION: &str = "1";
+
 #[cfg(not(feature = "integration-test"))]
 const COMPILE_TIME_TWC: Address = {
     #[cfg(feature = "test-config")]
@@ -28,7 +28,8 @@ const COMPILE_TIME_TWC: Address = {
     }
     #[cfg(not(feature = "test-config"))]
     {
-        ZERO_TRANSFER_ADDRESS
+        // contracts/TWC_CREATE2.md — default Foundry profile + default ctor args
+        address!("0x5C260DD537A9c23Bbd42493e59F3CeA7da2DbC71")
     }
 };
 
@@ -37,7 +38,7 @@ static INTEGRATION_TWC: OnceLock<Address> = OnceLock::new();
 
 /// 実行時に解決する `TransferWithCommitment` のデプロイアドレス。
 ///
-/// - **通常ビルド** — コンパイル時定数（[`TRANSFER_WITH_COMMITMENT_ADDRESS`] と一致、`integration-test` 以外）。
+/// - **通常ビルド** — [`TRANSFER_WITH_COMMITMENT_ADDRESS`] と一致（`integration-test` 以外）。
 /// - **`integration-test`** — 初回アクセス時に `ETH_TWC_CONTRACT_ADDRESS` をパース。未設定・不正ならゼロアドレス扱い。
 #[inline]
 pub fn transfer_with_commitment_address() -> Address {
@@ -56,38 +57,16 @@ pub fn transfer_with_commitment_address() -> Address {
     }
 }
 
-/// `TransferWithCommitment` コントラクトのアドレス（コンパイル時定数）。
+/// `TransferWithCommitment` の決定論アドレス（コンパイル時定数）。
 ///
-/// 既定は [`ZERO_TRANSFER_ADDRESS`] です。**ゼロのままでは** [`crate::sign`]・[`crate::verify`]・[`crate::send_transaction`] が失敗します。
-///
-/// `test-config` フィーチャー有効時は単体テスト用の固定アドレスになります。
-///
-/// `integration-test` 有効時は本定数はプレースホルダ（ゼロ）です。実アドレスは [`transfer_with_commitment_address`] を使ってください。
+/// `integration-test` 有効時はプレースホルダ（ゼロ）。実アドレスは [`transfer_with_commitment_address`] を使ってください。
 #[cfg(not(feature = "integration-test"))]
 pub const TRANSFER_WITH_COMMITMENT_ADDRESS: Address = COMPILE_TIME_TWC;
 
 #[cfg(feature = "integration-test")]
 pub const TRANSFER_WITH_COMMITMENT_ADDRESS: Address = ZERO_TRANSFER_ADDRESS;
 
-/// 本 SDK が許可するチェーン ID の一覧。
-///
-/// Ethereum mainnet、Sepolia、Polygon、Arbitrum One。
-/// `integration-test` では Anvil 用に **31337** を追加します。
-#[cfg(not(feature = "integration-test"))]
-pub const SUPPORTED_CHAIN_IDS: &[u64] = &[1, 11155111, 137, 42161, 43114];
-
-#[cfg(feature = "integration-test")]
-pub const SUPPORTED_CHAIN_IDS: &[u64] = &[1, 11155111, 137, 42161, 43114, 31337];
-
-/// [`transfer_with_commitment_address`] がゼロでないことを検証する。
-///
-/// # 戻り値
-///
-/// - `Ok(())` — コントラクトアドレスが設定済み。
-///
-/// # エラー
-///
-/// - [`crate::SdkError::ContractNotConfigured`] — アドレスが [`ZERO_TRANSFER_ADDRESS`] のまま。
+/// [`transfer_with_commitment_address`] がゼロでないことを検証する（`integration-test` で未設定 env のときなど）。
 #[inline]
 pub fn assert_transfer_contract_configured() -> Result<(), crate::SdkError> {
     if transfer_with_commitment_address() == ZERO_TRANSFER_ADDRESS {
@@ -102,17 +81,19 @@ mod tests {
 
     #[test]
     #[cfg(not(feature = "test-config"))]
-    fn transfer_with_commitment_address_is_zero_by_default() {
-        assert_eq!(transfer_with_commitment_address(), ZERO_TRANSFER_ADDRESS);
+    #[cfg(not(feature = "integration-test"))]
+    fn transfer_with_commitment_address_is_deterministic_create2() {
+        assert_eq!(
+            transfer_with_commitment_address(),
+            address!("0x5C260DD537A9c23Bbd42493e59F3CeA7da2DbC71")
+        );
     }
 
     #[test]
     #[cfg(not(feature = "test-config"))]
-    fn assert_transfer_contract_configured_fails_on_zero_address() {
-        assert!(matches!(
-            assert_transfer_contract_configured(),
-            Err(crate::SdkError::ContractNotConfigured)
-        ));
+    #[cfg(not(feature = "integration-test"))]
+    fn assert_transfer_contract_configured_ok_by_default() {
+        assert!(assert_transfer_contract_configured().is_ok());
     }
 
     #[test]

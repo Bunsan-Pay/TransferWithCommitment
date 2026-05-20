@@ -1,0 +1,45 @@
+---
+title: Fundamentals
+description: プロトコルの特徴・要件・検証の考え方。
+---
+
+# Fundamentals
+
+## 概要
+
+任意の **commitment（`bytes32`）** を、ERC-20 送金の事実とオンチェーンで結びつけ、**同じ commitment の悪用（リプレイ）を防ぎつつ**、オフチェーンで「commitment の生成スキーマ・元データ・トランザクション ID を知る者」が整合性を検証できるようにする仕組みです。
+
+## 特徴
+
+- 任意の commitment をオンチェーンで送金と結びつける。**commitment の生成スキーマ・元データ・txid を知る者だけが**、意図したとおりに検証できる（オンチェーンは commitment の一意性とイベント内容まで）。
+- 送金明細ごとに commitment を載せる **バッチ**送金。
+- 複数明細を **一つの commitment** にまとめる **Unified（Uni）** 送金。
+
+## プロトコル要件（リポジトリ上の定義）
+
+次を満たすことを求めます。
+
+1. **送金者の署名は 1 回だけ**（Self-Call はトランザクション署名のみ。委任経路では EIP-712 が 1 回）。
+2. **送金情報と commitment を含むイベント**を発行する（`TransferWithCommitmentSent`）。
+3. **commitment には一意性**があること（再利用できない）。オンチェーンでは `State` のビットマップと `replayGuard` で保証。
+4. **スキーマ・元データ・txid を知る者なら**いつでも検証可能（ペイロードの意味まではオンチェーンでは固定しない）。
+
+## オンチェーンとオフチェーンの分担
+
+| レイヤ       | 保証すること                                                                                     |
+| ------------ | ------------------------------------------------------------------------------------------------ |
+| オンチェーン | 送金・allowance・署名検証・commitment の消費・イベントへのフィールド記録                         |
+| オフチェーン | `commitment = H(…)` の具体的な `H` とメッセージ定義、レシートに基づく検証（信頼できる RPC 前提） |
+
+## 用語集
+
+主要な用語の定義は [Architecture Overview — 用語集](/architecture#用語集) を参照してください。
+
+## 信頼境界と脅威モデル（要点）
+
+- **RPC** — レシート・ログの取得元は、オフチェーン検証において **正直である**と仮定します。改ざんされた `eth_getTransactionReceipt` に対する防御は **SDK の責務外**であり、信頼できるノードプロバイダの選定、複数ノードによるレシートの照合、ブロックファイナリティの確認などは運用側で担保してください。
+- **署名者 / Executor** — 委任経路では、送金者の **EIP-712 署名**と Executor の **Tx 送信**が別主体になり得ます。メッセージ上の `from` / `executor` および `transferWithAuthorization` の送信者制約に従います（コントラクト: [SignatureTransfer](/contracts/signature-transfer)）。
+- **リプレイ** — 同一 commitment の再利用はオンチェーンで [State とリプレイ防止](/contracts/state-and-replay) により拒否します。
+- **オフチェーン「検証」** — イベントと期待パラメータの照合のみを行う検証と、**ビジネス上の最終性**（確定数ブロック、同一 Tx 内の重複ログの解釈等）を区別します（[Off-chain verification の限界（JS）](/sdk-js/guides/verification-limits) と同趣旨）。
+
+詳細なコントラクト仕様は引き続き **[仕様上の要点](/contracts/specification-highlights)** および `contracts/SPEC.md` を参照してください。

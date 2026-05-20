@@ -1,0 +1,56 @@
+---
+title: Contracts 開発・ツールチェーン
+description: Foundry・Docker・Slither・Anvil・デプロイ例。
+---
+
+# 開発・ツールチェーン（`contracts/`）
+
+## コンテナ上でテスト
+
+ホストは **`docker` + `docker compose`（v2）** のみでよい想定です。
+
+```bash
+./scripts/ci-contracts.sh
+```
+
+Slither をスキップする場合:
+
+```bash
+SKIP_SLITHER=1 ./scripts/ci-contracts.sh
+```
+
+Slither のみ:
+
+```bash
+./scripts/slither.sh
+```
+
+レポートは `contracts/audit/slither/` に出力されます（bind mount）。
+
+## Foundry（コンテナ外で直接触る場合）
+
+```bash
+cd contracts
+forge build
+forge test
+forge fmt
+forge snapshot
+```
+
+## Anvil
+
+```bash
+anvil
+```
+
+## デプロイ（例）
+
+```bash
+forge script script/TransferWithCommitment.s.sol:TransferWithCommitmentScript --broadcast --rpc-url <chain or url> --private-key <key>
+```
+
+スクリプト名・パスはリポジトリの `contracts/script/` 実体に合わせてください。
+
+## 全体の開発フロー
+
+モノレポ全体の Docker ベース CI: [CI と開発フロー](/contributing/monorepo-ci)。

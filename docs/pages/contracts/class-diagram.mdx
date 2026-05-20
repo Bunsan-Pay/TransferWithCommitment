@@ -1,0 +1,70 @@
+---
+title: クラス／継承図
+description: 主要コントラクトの関係（Mermaid）。
+---
+
+# クラス／継承図
+
+> 図中の `OpenZeppelin_*.sol` は **`@openzeppelin/contracts` のライブラリ**を指す便宜表記であり、リポジトリ内の実ファイル名ではありません。
+
+```mermaid
+classDiagram
+    SelfTransfer.sol <|-- TransferWithCommitment.sol
+    SignatureTransfer.sol <|-- TransferWithCommitment.sol
+    State.sol <|-- SelfTransfer.sol
+    State.sol <|-- SignatureTransfer.sol
+    SelfTransfer.sol ..> Events.sol
+    SignatureTransfer.sol ..> Events.sol
+    OpenZeppelin_EIP712.sol <|-- SignatureTransfer.sol
+    SignatureTransfer.sol ..> Hash.sol
+    SignatureTransfer.sol ..> OpenZeppelin_SignatureChecker.sol
+    class SelfTransfer.sol{
+      +external transfer()
+    }
+    class SignatureTransfer.sol{
+        +bytes32 TRANSFER_WITH_COMMIT_TYPEHASH
+        +bytes32 UNI_COMMIT_TRANSFER_TYPEHASH
+        +bytes32 BATCH_TRANSFER_WITH_COMMIT_TYPEHASH
+        +external transferWithAuthorization()
+        +external cancelAuthorization()
+    }
+    class State.sol{
+        -BitMap _commitmentStates
+        +public commitmentState()
+        +event CommitmentUsed
+        -commitmentUsed()
+    }
+    class Events.sol{
+        +event TransferWithCommitmentSent()
+        +error AllowanceNotEnough()
+    }
+    class OpenZeppelin_EIP712.sol{
+        +internal _hashTypedDataV4()
+        +external eip712Domain()
+    }
+    class Hash.sol{
+        +bytes32 TRANSFER_WITH_COMMIT_TYPEHASH
+        +bytes32 UNI_COMMIT_TRANSFER_TYPEHASH
+        +bytes32 BATCH_TRANSFER_WITH_COMMIT_TYPEHASH
+        +bytes32 TRANSFER_DETAIL_TYPEHASH
+        +bytes32 COMMITTED_TRANSFER_DETAIL_TYPEHASH
+        -hashTransferDetail()
+        -hashCommittedTransferDetail()
+        -hashBatchTransferDetails()
+        -hashBatchCommittedTransferDetails()
+    }
+    class OpenZeppelin_SignatureChecker.sol{
+        +isValidSignatureNow()
+    }
+```
+
+## ファイルと役割
+
+| ファイル                     | 役割                                                                                                                                                 |
+| ---------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `TransferWithCommitment.sol` | 最終派生。`SelfTransfer` と `SignatureTransfer` を継承。                                                                                             |
+| `State.sol`                  | commitment のリプレイ防止（`BitMap` + `replayGuard`）。                                                                                              |
+| `Events.sol`                 | `TransferWithCommitmentSent` `AllowanceNotEnough`を宣言。                                                                                            |
+| `SelfTransfer.sol`           | Self-Callの実装コントラクト。`ReentrancyGuard`・`State`を継承。                                                                                      |
+| `SignatureTransfer.sol`      | Signature-Transferの実装コントラクト。<br/>`EIP712`・`ReentrancyGuard`・`State`を継承。<br/>`Hash.sol`・`SignatureChecker`（EOA + ERC-1271）を利用。 |
+| `Hash.sol`                   | EIP-712 TypeHash と明細のエンコード／ハッシュ。                                                                                                      |

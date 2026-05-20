@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.13;
+pragma solidity ^0.8.22;
 
 import {Script, console2} from "forge-std/Script.sol";
 import {TransferWithCommitment} from "../src/TransferWithCommitment.sol";
@@ -22,7 +22,7 @@ import {ISingletonFactory} from "../src/interfaces/ISingletonFactory.sol";
 /// @notice Chain requirement
 /// - The singleton factory must exist at `SINGLETON_FACTORY` on the target chain.
 contract TransferWithCommitmentCreate2Script is Script {
-    address internal constant SINGLETON_FACTORY = 0xCE0042b868300000D44A59004da54A005EDDCf7f;
+    address internal constant SINGLETON_FACTORY = 0xce0042B868300000d44A59004Da54A005ffdcf9f;
 
     bytes32 internal constant DEFAULT_SALT = keccak256("TransferWithCommitment/default/1");
 

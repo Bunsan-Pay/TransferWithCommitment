@@ -1,0 +1,49 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "signature-transfer-signed-single.bundle",
+  "title": "TWC SignatureTransfer SignedSingleTransfer (exported JSON)",
+  "description": "Matches eth-twc-sdk-js/signatureTransfer/single signedDataSchema. Numeric fields serialized as decimal strings.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "domain",
+    "from",
+    "to",
+    "token",
+    "value",
+    "validAfter",
+    "validBefore",
+    "commitment",
+    "signature"
+  ],
+  "properties": {
+    "domain": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["name", "version", "chainId", "verifyingContract"],
+      "properties": {
+        "name": { "type": "string" },
+        "version": { "type": "string" },
+        "chainId": {
+          "oneOf": [{ "type": "integer" }, { "type": "string", "pattern": "^[0-9]+$" }]
+        },
+        "verifyingContract": {
+          "type": "string",
+          "pattern": "^0x[0-9a-fA-F]{40}$"
+        },
+        "salt": {
+          "type": "string",
+          "pattern": "^0x[0-9a-fA-F]{64}$"
+        }
+      }
+    },
+    "from": { "type": "string", "pattern": "^0x[0-9a-fA-F]{40}$" },
+    "to": { "type": "string", "pattern": "^0x[0-9a-fA-F]{40}$" },
+    "token": { "type": "string", "pattern": "^0x[0-9a-fA-F]{40}$" },
+    "value": { "type": "string", "pattern": "^[0-9]+$" },
+    "validAfter": { "type": "string", "pattern": "^[0-9]+$" },
+    "validBefore": { "type": "string", "pattern": "^[0-9]+$" },
+    "commitment": { "type": "string", "pattern": "^0x[0-9a-fA-F]{64}$" },
+    "signature": { "type": "string", "pattern": "^0x[0-9a-fA-F]+$" }
+  }
+}

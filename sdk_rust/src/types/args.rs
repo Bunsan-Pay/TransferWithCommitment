@@ -83,6 +83,8 @@ pub struct SignatureBatchTransferWithCommitArgs {
     pub executor: Address,
     /// コミットメント付き明細。
     pub details: Vec<CommittedTransferDetail>,
+    /// バッチ全体のコミットメント（EIP-712 の `batchCommitment`；オンチェーンでは `replayGuard(from, batchCommitment)`）。
+    pub batch_commitment: B256,
     /// EIP-712 の `validAfter`。`None` のときは `0`。
     pub valid_after: Option<U256>,
     /// EIP-712 の `validBefore`。`None` のときは [`U256::MAX`]。

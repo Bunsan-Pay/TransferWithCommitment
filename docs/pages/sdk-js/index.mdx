@@ -1,0 +1,24 @@
+---
+title: JavaScript / TypeScript SDK
+description: eth-twc-sdk-js — viem ベースの TWC クライアントの入り口。
+---
+
+# `eth-twc-sdk-js`
+
+[viem](https://viem.sh/) の **`PublicClient`**（読み取り・シミュレーション）と **`WalletClient`**（署名・トランザクション送信）を前提に、`TransferWithCommitment` コントラクトへの呼び出しとオフチェーン検証をまとめたパッケージです。
+
+## 設計の要点
+
+1. **ルート import はない** — `package.json` の `exports` で宣言された **サブパスだけ**が import 可能（例: `eth-twc-sdk-js/signatureTransfer/single`）。
+2. **利用者の責務は RPC・チェーン整合** — インストールした **npm 版が想定する TWC デプロイ**（ビルドに焼き込まれた定数）と、接続先ネットワークを一致させる。アドレスをソースに書き込む作業は [Contributing: JS リリース](/contributing/sdk-js-release)（リポジトリコントリビュータ向け）です。
+3. **チェーンとデプロイ** — [utils](/sdk-js/api/utils)。`PublicClient` / `WalletClient` に **`chain.id` を設定**し、接続先に **canonical TWC**（CREATE2）がデプロイ済みである必要があります。チェーン allowlist はありません。
+4. **EIP-712 domain** — `signatureTransfer/*/sign` は **ゼロ `salt` を `signTypedData` 前に domain から取り除きます**（[理由と手順](/sdk-js/guides/eip712-domain-salt)）。
+5. **`commitment` の生成は SDK の外** — `bytes32` は、衝突耐性のあるハッシュ関数 *H* で導いた値を用意してください（例は [Commitment の生成](/sdk-js/guides/commitment)）。
+
+プロトコル全体の図解・要件は **[Architecture](/architecture)** と **[Contracts](/contracts)** を先に読むと、SDK の各 API の位置づけが掴みやすいです。
+
+## 次に読む
+
+- 初回: [Installation](/sdk-js/introduction/installation) → [Getting Started](/sdk-js/introduction/getting-started)
+- 実践: [Tutorial: Self-Call](/sdk-js/guides/tutorial-self-call)、[Tutorial: EIP-712 + Executor](/sdk-js/guides/tutorial-signature-executor)、[Tutorial: verify](/sdk-js/guides/tutorial-verify) · シナリオ導線は [Architecture — シナリオと実装手順](/architecture/sequences#シナリオと実装手順)
+- 網羅 API: [Import パス一覧](/sdk-js/api/exports) から必要なモジュールへ

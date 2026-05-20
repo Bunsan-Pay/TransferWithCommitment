@@ -1,0 +1,29 @@
+---
+title: Rust SDK 結合テスト
+description: cargo と scripts/test-sdk-rust-integration.sh。
+---
+
+# 開発・結合テスト（`sdk_rust`）
+
+## クレート単体
+
+```bash
+cd sdk_rust
+cargo test
+cargo doc --no-deps --open   # 任意
+```
+
+## モノレポからの結合テスト
+
+リポジトリルートの `./scripts/test-sdk-rust-integration.sh` が、Docker 経由で **Anvil + デプロイ + `cargo test`** を実行する想定です（[CI と開発フロー](/contributing/monorepo-ci) と同じく `integration-test` feature を用いる想定。詳細は `scripts/` / `docker/compose.yml` 実体に合わせる）。
+
+- 環境変数 `ETH_TWC_CONTRACT_ADDRESS` 等は [feature フラグ](/contributing/sdk-rust-feature-flags) 参照。
+
+## rustdoc
+
+```bash
+cd sdk_rust
+cargo doc --no-deps
+```
+
+非公開モジュール込みは `cargo doc --no-deps --document-private-items`。

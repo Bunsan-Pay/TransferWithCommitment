@@ -1,0 +1,171 @@
+---
+title: "Tutorial: EIP-712 署名と Executor 送信 — Rust SDK"
+description: sign → signature_transfer を役割分担付きで実装する（検証は verify チュートリアルへ）。
+---
+
+# Tutorial: EIP-712 + Executor
+
+このフローでは **送金者**がオフチェーンで EIP-712 署名し、**Executor**（別 EOA）が `transferWithAuthorization` を送ります。マイニング後のレシート検証は [Tutorial: レシート検証（verify）](/sdk-rust/guides/tutorial-verify) を参照してください。
+
+## 前提チェックリスト
+
+- [ ] 使っている **クレートのビルド**が、接続先の TWC デプロイと一致している（リポジトリ内の設定は [feature フラグ](/contributing/sdk-rust-feature-flags)・[リリース手順](/contributing/sdk-rust-release)）
+- [ ] 送金元 `from` がトークンを TWC に `approve` 済み
+- [ ] 署名に使う Alloy `Signer` の `address` が EIP-712 の **`from`** と一致
+- [ ] 送信（Executor）に使う `Signer` の `address` が EIP-712 の **`executor`** と一致
+- [ ] `sign` 時と `signature_transfer` 時、および `verify` 時の **参照に使う `Provider` のチェーン**が一致（同じ RPC URL であることが望ましい）
+
+## Step 0 — 送金者と Executor の準備（例）
+
+送金者用と Executor 用に **別の**秘密鍵（`PrivateKeySigner` 等）を用意します（ローカルでは Anvil のデフォルト鍵 2 本でも構いません）。**読み取りと署名**には `eip712Domain()` 取得＋`sign` に用いる `read_provider` と `sender` を、**トランザクション送信用**は Executor 鍵を載せた `executor_provider` を使います。読み取り専用の `read_provider` と送信専用の `executor_provider` を分けると、JS SDK の `PublicClient` / Executor 用 `WalletClient` の対応づけが分かりやすくなります。
+
+```rust
+use alloy::network::EthereumWallet;
+use alloy::providers::ProviderBuilder;
+use alloy::signers::local::PrivateKeySigner;
+
+// 例: 同じ Anvil ローカル RPC（読み取り＋送金者署名）
+let read_provider = ProviderBuilder::new()
+    .connect_http("http://127.0.0.1:8545".parse().expect("RPC URL"));
+
+let sender: PrivateKeySigner =
+    "0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80"
+        .parse()
+        .expect("SENDER private key");
+let executor: PrivateKeySigner =
+    "0x59c6995e998f97a5a0044966f0945389dc9e86dae88c7a8412f4603b6b78690d"
+        .parse()
+        .expect("EXECUTOR private key");
+
+// Executor がブロードキャストする用（`msg.sender` = executor）
+let executor_provider = ProviderBuilder::new()
+    .wallet(EthereumWallet::new(executor.clone()))
+    .connect_http("http://127.0.0.1:8545".parse().expect("RPC URL"));
+```
+
+## Step 1 — 送金者側: 署名
+
+```rust
+use alloy::primitives::{address, utils::parse_ether, B256};
+use eth_twc_sdk::{sign, types::SingleTransferArgs};
+
+let token = address!("0x5FbDB2315678afecb367f032d93F642f64180aa3");
+let to = address!("0x70997970C51812dc3A010C7d01b50e0d17dc79C8");
+let value = parse_ether("1").unwrap();
+let commitment = B256::ZERO; // 本番では自前で導出
+
+let signed = sign::single_transfer(
+    &read_provider,
+    &sender,
+    SingleTransferArgs {
+        from: sender.address(),
+        to,
+        token,
+        executor: executor.address(),
+        value,
+        commitment,
+        valid_after: None,
+        valid_before: None,
+    },
+)
+.await?;
+```
+
+`signed` には正規化済みの **`domain`**（ゼロ `salt` は domain 表現から除かれうる）と、EIP-712 署名、送金フィールドが入ります。オフチェーンで Executor へ渡す場合、**配列のシリアライズ規約はアプリ側で決めて**ください（本 SDK は伝送形式を規定しません）。
+
+`valid_after` / `valid_before` を `None` のままにすると、実装上は **`0` と `U256::MAX`** として扱われます（[sign API](/sdk-rust/api/sign)）。
+
+## Step 2 — Executor 側: オンチェーン送信
+
+```rust
+use eth_twc_sdk::send_transaction::signature_transfer;
+
+let tx_hash =
+    signature_transfer::single_transfer(&executor_provider, executor.address(), signed)
+        .await?;
+```
+
+`single_transfer` の第 2 引数 `executor` は、ブロードキャストの **`msg.sender`** です。EIP-712 上の `executor` と一致していないと、シミュレーションで失敗し送信されません（[signature_transfer API](/sdk-rust/api/signature-transfer)）。
+
+マイニング後のレシート検証は [Tutorial: レシート検証（verify）](/sdk-rust/guides/tutorial-verify) を参照してください。
+
+## Uni / バッチ / キャンセル
+
+| 目的 | `sign`（`eth_twc_sdk::sign`） | 送信（`eth_twc_sdk::send_transaction::signature_transfer`） |
+| --- | --- | --- |
+| Uni | `uni_commit_transfers` | `unified_transfer` |
+| バッチ | `batch_transfer_with_commit` | `batch_transfer` |
+| 承認取消 | `cancel_authorization` | `cancel_authorization` |
+
+各モジュールの引数の違いは [sign](/sdk-rust/api/sign) と [signature_transfer](/sdk-rust/api/signature-transfer) を参照してください。
+
+## よくあるつまずき
+
+- **`DomainChainIdMismatch` / `DomainVerifyingContractMismatch`** — 署名に使った `domain` と、送信・検証時の RPC のチェーン、または **クレートが想定する TWC デプロイ**が食い違っていないか（[utils](/sdk-rust/api/utils) の `assert_signed_domain_matches_provider_and_config` 系。[内部 API](/contributing/sdk-rust-internals) 参照）。
+- **Executor を間違えた** — メッセージの `executor` と、`signature_transfer` に渡す `Provider` から送るアドレス（`executor` 引数）が一致するか。
+- **`FromSignerMismatch`** — `Signer::address` と EIP-712 の `from` が食い違う（`sign` が署名前に `SdkError` を返す）。
+
+## エンドツーエンド例（1 つにまとめた `main`）
+
+下記は **`sdk_rust/src/lib.rs` の第 2 の doc 付き例（`ignore`）**と同じ骨子です。鍵とアドレスは自分の環境に合わせて置き換えてください。
+
+```rust
+use alloy::network::EthereumWallet;
+use alloy::primitives::{address, utils::parse_ether, B256};
+use alloy::providers::ProviderBuilder;
+use alloy::signers::local::PrivateKeySigner;
+use eth_twc_sdk::{
+    send_transaction::signature_transfer,
+    sign,
+    types::SingleTransferArgs,
+};
+
+#[tokio::main]
+async fn main() -> Result<(), eth_twc_sdk::SdkError> {
+    let read_provider =
+        ProviderBuilder::new().connect_http("http://127.0.0.1:8545".parse().unwrap());
+
+    let sender: PrivateKeySigner =
+        "0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80"
+            .parse()
+            .unwrap();
+    let executor: PrivateKeySigner =
+        "0x59c6995e998f97a5a0044966f0945389dc9e86dae88c7a8412f4603b6b78690d"
+            .parse()
+            .unwrap();
+
+    let token = address!("0x5FbDB2315678afecb367f032d93F642f64180aa3");
+    let to = address!("0x70997970C51812dc3A010C7d01b50e0d17dc79C8");
+    let value = parse_ether("1").unwrap();
+    let commitment = B256::ZERO;
+
+    let signed = sign::single_transfer(
+        &read_provider,
+        &sender,
+        SingleTransferArgs {
+            from: sender.address(),
+            to,
+            token,
+            executor: executor.address(),
+            value,
+            commitment,
+            valid_after: None,
+            valid_before: None,
+        },
+    )
+    .await?;
+
+    let executor_provider = ProviderBuilder::new()
+        .wallet(EthereumWallet::new(executor.clone()))
+        .connect_http("http://127.0.0.1:8545".parse().unwrap());
+    let _tx_hash =
+        signature_transfer::single_transfer(&executor_provider, executor.address(), signed)
+            .await?;
+
+    // レシート検証はドキュメント「Tutorial: レシート検証（verify）」（sdk-rust/guides/tutorial-verify）を参照
+
+    Ok(())
+}
+```
+
+自己送金（`self_transfer`）の経路は [Tutorial: Self-Call](/sdk-rust/guides/tutorial-self-call) を参照してください。

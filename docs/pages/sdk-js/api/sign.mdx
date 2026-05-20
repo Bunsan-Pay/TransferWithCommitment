@@ -1,0 +1,66 @@
+---
+title: EIP-712 署名（signatureTransfer）
+description: eth-twc-sdk-js/signatureTransfer/* の sign API。
+---
+
+# `eth-twc-sdk-js/signatureTransfer/*` — `sign`
+
+公開は **バリアント単位**。各ファイルで **`sign`** と同じ名前の関数を export します（インポート元のパスで区別）。
+
+```typescript
+import { sign } from "eth-twc-sdk-js/signatureTransfer/single";
+import { sign as signUnified } from "eth-twc-sdk-js/signatureTransfer/unified";
+```
+
+すべての関数で **ほぼ同じ事前条件**が走ります。
+
+1. **接続先が、その npm 版 SDK が想定する TWC デプロイと整合している**こと（未設定アドレスは内部で reject — [内部 API](/contributing/sdk-js-internals)）
+2. `assertPublicWalletSameSupportedChain(publicClient, wallet)`
+3. **`argsSchema.assert(args)`**（省略フィールドは **デフォルト適用後**のオブジェクト `a` が使われる — `inferIn` と assert による）
+4. `assertSignerMatchesEip712Role(account, …)` — `single` / `batch` / `unified` は **`from`**、`cancelAuthorization` は **`authorizer`**
+5. `getEip712Domain` で domain を読み、`salt` がゼロワードなら **署名前に domain から除く**（[詳細](/sdk-js/guides/eip712-domain-salt)）
+6. `wallet.signTypedData`
+
+**戻り値**の `Signed*` は、上記のとおり **`domain` を含んだ署名済みバンドル**です。入力・型一覧は [型と arktype](/sdk-js/api/types)。
+
+---
+
+## `signatureTransfer/single` — `sign`
+
+**primaryType**: `TransferWithCommit`。`eip712Types` は単一オブジェクト `{ TransferWithCommit: [...] }`。
+
+**入力** `SignatureTransferSingleArgs`（実行時検証は `argsSchema`） — [型ページ](/sdk-js/api/types)。
+
+**戻り値** `SignedSingleTransfer` — `executor` は戻り値に含まれません（EIP-712 メッセージには含まれる）。Executor は呼び出し側で別途保持してください。
+
+---
+
+## `signatureTransfer/unified` — `sign`（UniCommitTransfers）
+
+公開名 **`unified`**。EIP-712 の型名・`primaryType` は **`UniCommitTransfers`** と **`TransferDetail`**。
+
+**入力** `SignatureTransferUnifiedArgs` — `details` は **1 件以上**必須。`executor` は戻り値 `SignedUnifiedTransfer` に含まれません。
+
+---
+
+## `signatureTransfer/batch` — `sign`
+
+**primaryType** `BatchTransferWithCommit`。`CommittedTransferDetail` と `batchCommitment` が必須。
+
+**戻り値** `SignedBatchTransfer`。
+
+---
+
+## `signatureTransfer/cancelAuthorization` — `sign`
+
+**入力** `authorizer`, `commitment`。署名者と `authorizer` の一致が必須。
+
+---
+
+## 署名が失敗しうる主な理由（SDK 外）
+
+- ウォレットがユーザーに拒否された
+- `getEip712Domain` の RPC 失敗
+- チェーン未対応・コントラクト未設定（上記 assert）
+
+送信（Executor が `transferWithAuthorization` / `cancelAuthorization` を実行する側）は [`signature-transfer`](/sdk-js/api/signature-transfer) を参照してください。

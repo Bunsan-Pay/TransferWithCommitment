@@ -1,0 +1,18 @@
+---
+title: Why — React SDK
+description: なぜ Wagmi と TanStack Query 上にあるか。
+---
+
+# Why
+
+DApp では **接続状態・チェーン・送信中フラグ**が頻繁に変化します。`eth-twc-sdk-js` をそのままコンポーネントに書くと、`useEffect` とローディング管理が膨らみがちです。
+
+`eth-twc-sdk-react` は **wagmi のクライアント取得**と **TanStack Query のミューテーション／クエリ規約**に公式に沿うことで、UI から **「送る／調べる」操作だけ**に集中できるようにします。
+
+### 章内の主なページ
+
+| カテゴリ     | リンク                                                                                                                                                                                                   |
+| ------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 導入         | [インストール](/sdk-react/introduction/installation) · [Getting started](/sdk-react/introduction/getting-started) · [互換性](/sdk-react/introduction/compatibility) · [FAQ](/sdk-react/introduction/faq) |
+| セットアップ | [Providers](/sdk-react/guides/providers-setup) · [Commitment（React）](/sdk-react/guides/commitment)                                                                                                     |
+| API          | [exports](/sdk-react/api/exports) · [フック](/sdk-react/api/hooks) · [クライアントとエラー](/sdk-react/api/clients-errors)                                                                               |

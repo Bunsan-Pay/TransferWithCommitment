@@ -28,7 +28,7 @@ use crate::utils::assert_provider_supported_chain;
 ///
 /// # エラー
 ///
-/// [`crate::SdkError`] — 未設定アドレス、非対応チェーン、RPC／送信失敗など。
+/// [`crate::SdkError`] — 未設定（ゼロ）アドレス、TWC 未デプロイ（`eth_getCode` が空）、RPC／送信失敗など。
 pub async fn transfer<P: Provider>(
     provider: &P,
     from: Address,
@@ -136,7 +136,7 @@ mod tests {
     use super::{batch_transfer, transfer, unified_transfer};
 
     #[tokio::test]
-    async fn transfer_fails_when_contract_not_configured() {
+    async fn transfer_fails_when_rpc_unreachable() {
         let provider = ProviderBuilder::new().connect_http("http://127.0.0.1:65531".parse().unwrap());
         let from = address!("0x1111111111111111111111111111111111111111");
         let args = SelfSingleTransferArgs {
@@ -146,7 +146,7 @@ mod tests {
             commitment: B256::repeat_byte(0xaa),
         };
         let r = transfer(&provider, from, args).await;
-        assert!(matches!(r, Err(crate::SdkError::ContractNotConfigured)));
+        assert!(matches!(r, Err(crate::SdkError::Alloy(_))));
     }
 
     #[tokio::test]
@@ -177,7 +177,7 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn unified_transfer_succeeds_past_empty_check_when_contract_not_configured() {
+    async fn unified_transfer_fails_with_alloy_when_rpc_unreachable_after_nonempty_details() {
         let provider = ProviderBuilder::new().connect_http("http://127.0.0.1:65527".parse().unwrap());
         let from = address!("0x1111111111111111111111111111111111111111");
         let detail = TransferDetail {
@@ -190,14 +190,11 @@ mod tests {
             commitment: B256::repeat_byte(0xbb),
         };
         let r = unified_transfer(&provider, from, args).await;
-        assert!(matches!(
-            r,
-            Err(crate::SdkError::ContractNotConfigured)
-        ));
+        assert!(matches!(r, Err(crate::SdkError::Alloy(_))));
     }
 
     #[tokio::test]
-    async fn batch_transfer_succeeds_past_empty_check_when_contract_not_configured() {
+    async fn batch_transfer_fails_with_alloy_when_rpc_unreachable_after_nonempty_details() {
         let provider = ProviderBuilder::new().connect_http("http://127.0.0.1:65526".parse().unwrap());
         let from = address!("0x1111111111111111111111111111111111111111");
         let row = CommittedTransferDetail {
@@ -210,9 +207,6 @@ mod tests {
             details: vec![row],
         };
         let r = batch_transfer(&provider, from, args).await;
-        assert!(matches!(
-            r,
-            Err(crate::SdkError::ContractNotConfigured)
-        ));
+        assert!(matches!(r, Err(crate::SdkError::Alloy(_))));
     }
 }

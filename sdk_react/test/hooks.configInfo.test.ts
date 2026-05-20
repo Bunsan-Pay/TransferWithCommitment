@@ -1,12 +1,16 @@
-import { renderHook } from "@testing-library/react";
-import { beforeEach, describe, expect, test } from "bun:test";
-import type { Chain } from "viem";
+import { renderHook, waitFor } from "@testing-library/react";
+import { beforeEach, describe, expect, mock, test } from "bun:test";
+import type { Chain, PublicClient } from "viem";
 import { mainnet } from "viem/chains";
 
-import { useIsSupportedChain } from "../hooks/configInfo.ts";
-import { supportedChains, transferWithCommitmentAddress } from "../hooks/sdkConfig.ts";
+import {
+  useIsSupportedChain,
+  useIsTransferWithCommitmentDeployed,
+} from "../hooks/configInfo.ts";
+import { EIP712_DOMAIN_NAME } from "../hooks/sdkConfig.ts";
 import { TEST_VERIFIER_CONTRACT } from "./fixtures.ts";
-import { resetSdkConfigAddress } from "./sdkConfigState.ts";
+import { createQueryWrapper, createTestQueryClient } from "./queryClient.tsx";
+import { resetSdkConfigAddress, sdkConfigState } from "./sdkConfigState.ts";
 import { resetWagmiState, wagmiState } from "./wagmiState.ts";
 import { stubPublicClient } from "./stubs.ts";
 
@@ -16,35 +20,75 @@ describe("sdkConfig 再エクスポート", () => {
   });
 
   test("transferWithCommitmentAddress はモック config と一致", () => {
-    expect(transferWithCommitmentAddress).toBe(TEST_VERIFIER_CONTRACT);
+    expect(sdkConfigState.transferWithCommitmentAddress).toBe(
+      TEST_VERIFIER_CONTRACT,
+    );
   });
 
-  test("supportedChains に mainnet が含まれる", () => {
-    expect(supportedChains.some((c) => c.id === mainnet.id)).toBe(true);
+  test("EIP712_DOMAIN_NAME がコントラクトと一致", () => {
+    expect(EIP712_DOMAIN_NAME).toBe("TransferWithCommitment");
   });
 });
 
-describe("useIsSupportedChain", () => {
+describe("useIsTransferWithCommitmentDeployed", () => {
   beforeEach(() => {
     resetWagmiState();
   });
 
   test("public client が無いときは false", () => {
-    const { result } = renderHook(() => useIsSupportedChain());
+    const qc = createTestQueryClient();
+    const { result } = renderHook(() => useIsTransferWithCommitmentDeployed(), {
+      wrapper: createQueryWrapper(qc),
+    });
     expect(result.current).toBe(false);
   });
 
-  test("mainnet クライアントでは true", () => {
-    wagmiState.publicClient = stubPublicClient({ chain: mainnet });
-    const { result } = renderHook(() => useIsSupportedChain());
-    expect(result.current).toBe(true);
+  test("getCode が空なら false", async () => {
+    const qc = createTestQueryClient();
+    wagmiState.publicClient = stubPublicClient({
+      getCode: mock(() => Promise.resolve("0x")) as unknown as PublicClient["getCode"],
+    });
+    const { result } = renderHook(() => useIsTransferWithCommitmentDeployed(), {
+      wrapper: createQueryWrapper(qc),
+    });
+    await waitFor(() => expect(result.current).toBe(false));
   });
 
-  test("未対応チェーン id では false", () => {
+  test("getCode が非空なら true", async () => {
+    const qc = createTestQueryClient();
+    wagmiState.publicClient = stubPublicClient({
+      chain: mainnet,
+      getCode: mock(() =>
+        Promise.resolve("0x6000"),
+      ) as unknown as PublicClient["getCode"],
+    });
+    const { result } = renderHook(() => useIsTransferWithCommitmentDeployed(), {
+      wrapper: createQueryWrapper(qc),
+    });
+    await waitFor(() => expect(result.current).toBe(true));
+  });
+
+  test("未知名義の chain でも getCode が成功すれば評価される", async () => {
+    const qc = createTestQueryClient();
     wagmiState.publicClient = stubPublicClient({
       chain: { id: 999_999, name: "Unknown" } as unknown as Chain,
+      getCode: mock(() =>
+        Promise.resolve("0x6000"),
+      ) as unknown as PublicClient["getCode"],
     });
-    const { result } = renderHook(() => useIsSupportedChain());
-    expect(result.current).toBe(false);
+    const { result } = renderHook(() => useIsTransferWithCommitmentDeployed(), {
+      wrapper: createQueryWrapper(qc),
+    });
+    await waitFor(() => expect(result.current).toBe(true));
+  });
+});
+
+describe("useIsSupportedChain（非推奨エイリアス）", () => {
+  beforeEach(() => {
+    resetWagmiState();
+  });
+
+  test("useIsTransferWithCommitmentDeployed と同じ参照", () => {
+    expect(useIsSupportedChain).toBe(useIsTransferWithCommitmentDeployed);
   });
 });

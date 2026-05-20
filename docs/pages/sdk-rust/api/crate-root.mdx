@@ -1,0 +1,37 @@
+---
+title: クレート入口と再エクスポート — Rust
+description: lib.rs で公開されるモジュールと type alias。
+---
+
+# クレート入口（`src/lib.rs`）
+
+## `pub mod`
+
+| モジュール | 内容 |
+| --- | --- |
+| `config` | 決定論 TWC アドレス・EIP-712 / CREATE2 定数（[内部](/contributing/sdk-rust-internals)） |
+| `sign` | EIP-712 署名 |
+| `verify` | レシート検証 |
+| `types` | 引数・明細・署名済み構造体 |
+| `utils` | チェーン／domain 検証 |
+| `events` | `sol!` イベント（ログデコード用） |
+| `send_transaction` | `self_transfer` / `signature_transfer` サブモジュール |
+| `error` | `SdkError` |
+
+## `pub use` される主要型
+
+| 名前 | 実体 |
+| --- | --- |
+| `Address` | `alloy::primitives::Address` |
+| `Eip712Domain` | `alloy::sol_types::Eip712Domain` |
+| `SdkError` | `crate::error::SdkError` |
+| `SignedTransferWithCommit`, `SignedUniCommitTransfers`, `SignedBatchTransferWithCommit`, `SignedCancelAuthorization` | `types::signed_data` |
+| `VerifyArgs` | `verify::VerifyArgs` |
+| `TransferWithCommitmentSent` | `events` のイベント型 |
+
+## `pub use` される関数（抜粋）
+
+- `assert_provider_supported_chain`（`eth_getCode` で canonical TWC の有無を確認するエイリアス）、`assert_signed_domain_matches_client_and_config`, `assert_signed_domain_matches_provider_and_config` — `utils` から
+- **`chain_id_matches`** — `utils` モジュールの関数としてのみ公開（**クレートルートの `pub use` には含まれません**）。`eth_twc_sdk::utils::chain_id_matches` で参照（[utils](/sdk-rust/api/utils)）。
+
+クレートの doc コメントに載っている **完全な使用例（`#[tokio::main]`）** は `sdk_rust/src/lib.rs` を参照してください（このサイトの [Self-Call チュートリアル](/sdk-rust/guides/tutorial-self-call) と [Executor チュートリアル](/sdk-rust/guides/tutorial-signature-executor) でもコードを掲示しています）。

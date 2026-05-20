@@ -15,13 +15,14 @@
     "emitDeclarationOnly": false
   },
   "include": [
+    "abi.ts",
     "verify.ts",
-    "sign.ts",
     "config.ts",
     "utils.ts",
-    "sendTransaction/**/*.ts",
-    "types/**/*.ts",
-    "types/args/**/*.ts",
+    "types/utils.ts",
+    "types/transferDetail.ts",
+    "selfTransfer/**/*.ts",
+    "signatureTransfer/**/*.ts",
     "../contracts/abi/generated.ts"
   ]
 }

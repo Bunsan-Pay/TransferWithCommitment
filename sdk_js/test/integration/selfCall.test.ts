@@ -4,7 +4,7 @@
 import { describe, expect, test } from "bun:test";
 import { parseEther } from "viem";
 import type { Hex } from "viem";
-import { transfer } from "../../sendTransaction/selfTransfer.ts";
+import { sendTx } from "../../selfTransfer/single/sendTx.ts";
 import { verify } from "../../verify.ts";
 import {
   commitmentFromPayload,
@@ -49,7 +49,7 @@ describe("integration: Self-Call（anvil）", () => {
     });
     await publicClient.waitForTransactionReceipt({ hash: approveHash });
 
-    const txHash = await transfer(
+    const txHash = await sendTx(
       publicClient,
       senderWallet,
       sender.address,

@@ -1,0 +1,19 @@
+{
+  "name": "twc-docs",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "playwright install chromium && vocs dev",
+    "build": "vocs build",
+    "preview": "vocs preview",
+    "postinstall": "playwright install chromium"
+  },
+  "devDependencies": {
+    "@types/react": "^19",
+    "playwright": "1.59.1",
+    "react": "^19",
+    "react-dom": "^19",
+    "typescript": "^5.9.3",
+    "vocs": "^1.4.1"
+  }
+}

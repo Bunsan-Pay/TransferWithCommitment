@@ -1,0 +1,28 @@
+---
+title: JS SDK リリースと公開手順
+description: npm 公開前に `twcConstants.ts` の CREATE2 / EIP-712 定数をリポジトリ正と揃える手順。
+---
+
+# `eth-twc-sdk-js` リリースと公開手順
+
+公式 `eth-twc-sdk-js` を **このリポジトリでメンテし `npm publish` 等で配布する担当者**向けです。利用者向けの利用手順は [SDK (JS)](/sdk-js) を参照してください。
+
+## 方針
+
+- **Canonical TWC アドレス**および CREATE2 salt・EIP-712 定数は **`sdk_js/twcConstants.ts`** が正本です（`contracts/TWC_CREATE2.md`・`sdk_rust/src/config.rs` と同値を維持）。
+
+## 手順
+
+1. コントラクト側で salt / バイトコード / ctor を変えた場合は、**まず** `contracts/TWC_CREATE2.md` と Foundry で期待アドレスを再計算し、`twcConstants.ts`・Rust `config.rs` と揃える。
+2. `cd sdk_js && bun run build` が通ることを確認。
+3. 可能なら結合スクリプト（[CI と開発フロー](/contributing/monorepo-ci)）で smoke を実行。
+
+## 想定される失敗
+
+- 接続チェーンで canonical アドレスに **コードが無い** — `assertTransferContractDeployed` 相当のメッセージ。**CREATE2 デプロイ**が必要（`contracts/TWC_CREATE2.md`）。
+- `chain` 未設定 — `PublicClient` / `WalletClient` に viem の `chain` を渡す。
+
+## 関連
+
+- [JS SDK 内部 API](/contributing/sdk-js-internals)
+- [Rust SDK リリース](/contributing/sdk-rust-release)

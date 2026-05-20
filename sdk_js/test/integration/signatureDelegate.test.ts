@@ -4,8 +4,8 @@
 import { describe, expect, test } from "bun:test";
 import { parseEther } from "viem";
 import type { Hex } from "viem";
-import { singleTransfer as signSingle } from "../../sign.ts";
-import { singleTransfer as sendSigned } from "../../sendTransaction/signatureTransfer.ts";
+import { sign as signSingle } from "../../signatureTransfer/single/sign.ts";
+import { sendTx as sendSigned } from "../../signatureTransfer/single/sendTx.ts";
 import { verify } from "../../verify.ts";
 import {
   commitmentFromPayload,

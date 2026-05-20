@@ -1,0 +1,26 @@
+---
+title: リポジトリ構成と規約
+description: モノレポの主要ディレクトリと、sdk_js のローカル開発手順。
+---
+
+# リポジトリ構成と規約
+
+## 主要ディレクトリ（俯瞰）
+
+ディレクトリ構成とデータの流れは **[リポジトリマップ（Architecture）](/architecture/repository-map)** を参照してください。以下はコントリビューター向けの補足です。
+
+## このモノレポで `sdk_js` を開発する
+
+```bash
+cd sdk_js
+bun install
+bun run build
+```
+
+成果物は `sdk_js/dist/`。他ワークスペースの `eth-twc-sdk-js` は `workspace:^` でここを参照する構成です（ルート `package.json` を確認）。
+
+- 公開・バージョニングの責務: [JS SDK リリースと公開手順](/contributing/sdk-js-release)
+
+## 関連
+
+- [CI と開発フロー](/contributing/monorepo-ci)

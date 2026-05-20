@@ -1,0 +1,25 @@
+---
+title: SdkError — Rust SDK
+description: 列挙子ごとの意味と発生箇所。
+---
+
+# `eth_twc_sdk::SdkError`
+
+`thiserror` 由来の **`Display` 実装**付き列挙体です。
+
+| バリアント | 典型的な発生箇所 |
+| --- | --- |
+| `ContractNotConfigured` | `integration-test` 等で **TWC アドレスがゼロのまま** API を呼んだ |
+| `ContractNotDeployed { address, chain_id }` | 接続チェーンで canonical アドレスに **コントラクトコードが無い**（`eth_getCode`） |
+| `DomainChainIdMismatch` | 署名 `domain` と RPC チェーン不一致 |
+| `DomainVerifyingContractMismatch` | `verifyingContract` が設定アドレスと不一致 |
+| `InvalidValidTimeWindow` | `valid_after > valid_before` |
+| `EmptyTransferDetails` | Uni/Batch で明細が空 |
+| `FromSignerMismatch` | `from` ≠ 署名者 |
+| `AuthorizerSignerMismatch` | `authorizer` ≠ 署名者 |
+| `EventNotFound` | `verify` が一致ログを見つけられない |
+| `ReceiptNotFound` | レシート未取得 |
+| `Alloy(String)` | RPC/コントラクト一般エラー |
+| `Signer` | 署名失敗（`From` `alloy::signers::Error`） |
+
+`From<alloy::contract::Error>` と `From<alloy::transports::TransportError>` が `Alloy` にマップされます。

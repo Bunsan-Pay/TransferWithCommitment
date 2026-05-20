@@ -1,0 +1,100 @@
+---
+title: "Reference: State"
+description: State.sol のリプレイ防止機構のリファレンス。
+---
+
+# State（`State.sol`）
+
+commitment の使用状態を管理し、同一 commitment の再利用（リプレイ）を防止するコントラクト。`SelfTransfer` と `SignatureTransfer` の共通基盤として継承される。
+
+**継承**: `IState`
+
+---
+
+## API Reference
+
+### event `CommitmentUsed`
+
+commitment が使用済みとしてマークされたときに発行されるイベント。
+
+```solidity
+event CommitmentUsed(address indexed payer, bytes32 indexed commitment);
+```
+
+| パラメータ | 型 | indexed | 説明 |
+| --- | --- | --- | --- |
+| `payer` | `address` | yes | commitment の所有者（送金者）のアドレス |
+| `commitment` | `bytes32` | yes | 使用済みとなったコミットメント |
+
+---
+
+### `commitmentState`
+
+指定した `(payer, commitment)` の組が使用済みかどうかを返す。
+
+```solidity
+function commitmentState(address payer, bytes32 commitment) public view returns (bool)
+```
+
+| 引数 | 型 | 説明 |
+| --- | --- | --- |
+| `payer` | `address` | 送金者のアドレス |
+| `commitment` | `bytes32` | 問い合わせ対象のコミットメント |
+
+| 戻り値 | 型 | 説明 |
+| --- | --- | --- |
+| (unnamed) | `bool` | `true`: 使用済み、`false`: 未使用 |
+
+- **前提条件**: なし
+- **事後条件**: `_commitmentStates[payer]` のビットマップにおける `uint256(commitment)` 番目のビットの値を返す
+- **アクション**: ストレージの読み取りのみ（状態変更なし）
+
+---
+
+## Internal Impl
+
+### `_commitmentStates`（状態変数）
+
+```solidity
+mapping(address => BitMaps.BitMap) private _commitmentStates;
+```
+
+アドレスごとに OpenZeppelin `BitMaps.BitMap` を保持するマッピング。各 commitment は `uint256(commitment)` としてビット位置に対応づけられ、ビットが立っていれば使用済み、立っていなければ未使用を表す。
+
+---
+
+### `commitmentUsed`
+
+commitment を使用済みとしてマークし、`CommitmentUsed` イベントを発行する。
+
+```solidity
+function commitmentUsed(address from, bytes32 commitment) private
+```
+
+| 引数 | 型 | 説明 |
+| --- | --- | --- |
+| `from` | `address` | commitment の所有者（送金者）のアドレス |
+| `commitment` | `bytes32` | 使用済みにするコミットメント |
+
+- **前提条件**: `replayGuard` 修飾子から呼び出される。直前に `!commitmentState(from, commitment)` が成立していることは呼び出し元が保証する。
+- **事後条件**: `_commitmentStates[from]` のビットマップで `uint256(commitment)` 番目のビットがセットされる
+- **アクション**: ビットをセットし、`CommitmentUsed(from, commitment)` を emit する
+
+---
+
+### `replayGuard`（modifier）
+
+修飾された関数の本体を実行する前に、指定された `(from, commitment)` が未使用であることを検証し、使用済みとしてマークする。
+
+```solidity
+modifier replayGuard(address from, bytes32 commitment)
+```
+
+| 引数 | 型 | 説明 |
+| --- | --- | --- |
+| `from` | `address` | commitment の所有者（送金者）のアドレス |
+| `commitment` | `bytes32` | 検証するコミットメント |
+
+- **前提条件**: `!commitmentState(from, commitment)` が `true` であること（偽の場合 revert: `"TransferWithCommitment: commitment is used"`）
+- **事後条件**: `commitmentUsed(from, commitment)` により当該 commitment が使用済みとなった状態で、修飾された関数本体（`_`）が実行される。関数本体が revert した場合はトランザクション全体が巻き戻るため、ビットの変更は永続化されない。
+- **アクション**: `require(!commitmentState(...))` → `commitmentUsed(from, commitment)` → `_`（関数本体）

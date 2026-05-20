@@ -1,0 +1,34 @@
+---
+title: send_transaction::signature_transfer — Rust SDK
+description: transferWithAuthorization と cancelAuthorization。
+---
+
+# `eth_twc_sdk::send_transaction::signature_transfer`
+
+各関数の先頭で **`assert_signature_transfer_context`**:
+
+1. **TWC 接続**の内部前提（[内部 API リファレンス](/contributing/sdk-rust-internals)）
+2. `assert_provider_supported_chain`
+3. 署名バンドルの `domain.chain_id` / `verifying_contract` を **`assert_signed_domain_matches_provider_and_config`** で検証
+
+その後 **シミュレーション → 送信**（Self-Call と同パターン）。
+
+## 関数一覧
+
+| Rust 関数 | 内容 |
+| --- | --- |
+| `single_transfer` | 8 引数 `transferWithAuthorization` |
+| `unified_transfer` | Uni 明細オーバーロード |
+| `batch_transfer` | バッチ明細オーバーロード |
+| `cancel_authorization` | `cancelAuthorization` |
+
+**Executor** — 第 2 引数 `executor: Address` が **`msg.sender`**。EIP-712 の `executor` と一致必須。
+
+**呼び出し形の例（単一、Executor 送金）**
+
+```rust
+// use eth_twc_sdk::send_transaction::signature_transfer;
+let tx_hash = signature_transfer::single_transfer(
+    &provider, executor, signed,
+).await?;
+```

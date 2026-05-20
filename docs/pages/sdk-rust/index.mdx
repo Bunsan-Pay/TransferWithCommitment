@@ -1,0 +1,27 @@
+---
+title: Rust SDK
+description: eth-twc-sdk — Alloy ベースの非同期 TWC クライアント。
+---
+
+# `eth-twc-sdk`
+
+**Alloy 1.8** 系の `Provider` / `Signer` を用い、TWC コントラクトへの **EIP-712 署名・`transfer`・`transferWithAuthorization`・レシート検証**を `async` / `await` で扱います。
+
+プロトコル全体の図解・要件は **[Architecture](/architecture)** と **[Contracts](/contracts)** を先に読むと、クレート各 API の位置づけが掴みやすいです。
+
+## このドキュメントの読み方
+
+1. [Installation](/sdk-rust/introduction/installation) → [Getting Started](/sdk-rust/introduction/getting-started)
+2. [Tutorial: Self-Call](/sdk-rust/guides/tutorial-self-call) → [Tutorial: EIP-712 + Executor](/sdk-rust/guides/tutorial-signature-executor) → [Tutorial: verify](/sdk-rust/guides/tutorial-verify)（シナリオ導線は [Architecture — シナリオと実装手順](/architecture/sequences#シナリオと実装手順)）
+3. [クレート概要](/sdk-rust/api/crate-root) → 各モジュール（[utils](/sdk-rust/api/utils), [sign](/sdk-rust/api/sign), …）
+
+## JS / React SDK との対応
+
+| JS                                  | Rust                                                                       |
+| ----------------------------------- | -------------------------------------------------------------------------- |
+| `sign.ts`                           | [`eth_twc_sdk::sign`](/sdk-rust/api/sign)                                  |
+| JS: `selfTransfer/*` の `sendTx`（Self-Call） | [`send_transaction::self_transfer`](/sdk-rust/api/self-transfer)           |
+| JS: `signatureTransfer/*` の `sendTx`        | [`send_transaction::signature_transfer`](/sdk-rust/api/signature-transfer) |
+| `verify.ts`                         | [`eth_twc_sdk::verify`](/sdk-rust/api/verify)                              |
+
+エラーは **`SdkError`** に統一されています（[一覧](/sdk-rust/api/sdk-error)）。

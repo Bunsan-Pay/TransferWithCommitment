@@ -1,0 +1,35 @@
+---
+title: sign — Rust SDK
+description: EIP-712 署名関数と domain 正規化。
+---
+
+# `eth_twc_sdk::sign`
+
+## `domain_for_typed_data_sign(...) -> Eip712Domain`
+
+引数: `name`, `version`, `chain_id`（`U256`）, `verifying_contract`, `salt`（`B256`）
+
+**`salt == B256::ZERO` のとき `Eip712Domain.salt` は `None`**（ゼロ以外は `Some(salt)`）。OpenZeppelin `EIP712` の domain separator と整合させるため。
+
+## `single_transfer` / `uni_commit_transfers` / `batch_transfer_with_commit` / `cancel_authorization`
+
+いずれも:
+
+1. `Signer` のアドレスと `from` / `authorizer` の一致確認（`FromSignerMismatch` / `AuthorizerSignerMismatch`）
+2. **TWC 接続**の内部前提（[内部 API リファレンス](/contributing/sdk-rust-internals)）
+3. `assert_provider_supported_chain`
+4. コントラクトから `eip712Domain()` を読み [`domain_for_typed_data_sign`] で正規化
+5. Sol 型の `eip712_signing_hash` → `signer.sign_hash`
+
+**時間窓** — `valid_after` / `valid_before` は `Option`。`None` のとき **`0`** と **`U256::MAX`**。逆転なら `InvalidValidTimeWindow`。
+
+**Uni/Batch** — `details` が空なら **`SdkError::EmptyTransferDetails`**（Self-Call と揃えた事前チェック）。
+
+詳細なフィールドは `types::args` と `types::signed_data` を併読してください。
+
+**呼び出し形の例（単一送金）**:
+
+```rust
+// use eth_twc_sdk::sign;
+let data = sign::single_transfer(&provider, &signer, args).await?;
+```

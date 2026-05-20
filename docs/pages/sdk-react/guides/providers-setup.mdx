@@ -1,0 +1,88 @@
+---
+title: Providers をセットアップする
+description: WagmiProvider と QueryClientProvider を最小構成で置く。
+---
+
+# Providers をセットアップする
+
+`eth-twc-sdk-react` のフックは **wagmi のコンテキスト内**でしか動きません。またミューテーション／クエリは **TanStack Query** に依存します。
+
+## ステップ 1 — 依存
+
+```bash
+# Bun
+bun add eth-twc-sdk-react eth-twc-sdk-js @tanstack/react-query wagmi viem
+
+# npm
+npm install eth-twc-sdk-react eth-twc-sdk-js @tanstack/react-query wagmi viem
+
+# pnpm
+pnpm add eth-twc-sdk-react eth-twc-sdk-js @tanstack/react-query wagmi viem
+```
+
+`peerDependencies` にある **同じメジャー範囲**の `react` / `@tanstack/react-query` / `wagmi` / `viem` を、アプリ側で一つに統一してください。
+
+## ステップ 2 — wagmi の config
+
+通常は `wagmiConfig.ts` のようなファイルで `createConfig` し、チェーン・トランスポート・コネクタを定義します。利用する **`chain.id` が RPC・ウォレットと一致**するようにしてください（接続するネットワークの viem `chain` を `chains` に列挙します）。
+
+最小例（viem のチェーンと `http` のみ）:
+
+```typescript
+import { createConfig, http } from "wagmi";
+import { mainnet, sepolia } from "viem/chains";
+
+export const config = createConfig({
+  chains: [mainnet, sepolia],
+  transports: {
+    [mainnet.id]: http(),
+    [sepolia.id]: http(),
+  },
+});
+```
+
+コネクタ（`injected` 等）はアプリに合わせて追加します。
+
+## ステップ 3 — ルートでラップ
+
+```tsx
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { WagmiProvider } from "wagmi";
+import { config } from "./wagmiConfig";
+
+const queryClient = new QueryClient();
+
+export function Providers({ children }: { children: React.ReactNode }) {
+  return (
+    <WagmiProvider config={config}>
+      <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
+    </WagmiProvider>
+  );
+}
+```
+
+**順序**: 外側 `WagmiProvider`、内側 `QueryClientProvider` で問題ありません（現在のフック実装は両方を読みます）。
+
+## ステップ 4 — 接続 UI
+
+送金・署名系ミューテーションは **`useWalletClient`** と **`useConnection().address`** を使います。ウォレット未接続のときは [narrowWriteClients](/sdk-react/api/clients-errors) が例外を投げます。ボタンは **`connect` 後に有効化**するか、エラーを表示してください。
+
+最小限の接続ボタンの例（`wagmi` の `useConnect`）:
+
+```tsx
+import { useConnect } from "wagmi";
+import { injected } from "wagmi/connectors";
+
+export function ConnectButton() {
+  const { connect, isPending } = useConnect();
+  return (
+    <button
+      type="button"
+      disabled={isPending}
+      onClick={() => connect({ connector: injected() })}
+    >
+      {isPending ? "接続中…" : "ウォレットを接続"}
+    </button>
+  );
+}
+```

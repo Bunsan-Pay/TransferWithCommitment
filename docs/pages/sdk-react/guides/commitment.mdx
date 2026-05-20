@@ -1,0 +1,45 @@
+---
+title: Commitment — React SDK
+description: JS SDK と同様、アプリが bytes32 を用意する。
+---
+
+# Commitment — React SDK
+
+`eth-twc-sdk-react` は **`commitment` を生成しません**。commitment の設計方針と推奨する式 \(commitment = H(message \,\|\, r)\) は [Commitment の生成（JS）](/sdk-js/guides/commitment) を参照してください。
+
+## React からの渡し方
+
+フックの引数オブジェクトにそのまま含めます。
+
+```tsx
+import { useSelfTransfer } from "eth-twc-sdk-react";
+import { keccak256, concat, toBytes } from "viem";
+
+function deriveCommitment(message: string, r: Uint8Array): `0x${string}` {
+  return keccak256(concat([toBytes(message), r]));
+}
+
+export function SendWithCommitment() {
+  const { mutateAsync, isPending } = useSelfTransfer();
+
+  async function onSend() {
+    const r = crypto.getRandomValues(new Uint8Array(32));
+    const commitment = deriveCommitment("invoice-123", r);
+
+    await mutateAsync({
+      token: "0x…",
+      to: "0x…",
+      value: 1_000_000n,
+      commitment,
+    });
+  }
+
+  return (
+    <button type="button" disabled={isPending} onClick={() => void onSend()}>
+      送金
+    </button>
+  );
+}
+```
+
+Uni / Batch での `commitment` の使い分けは [sign（JS）](/sdk-js/api/sign) および [型と arktype](/sdk-js/api/types) を参照してください。Rust での同概念は [commitment（Rust）](/sdk-rust/guides/commitment) です。

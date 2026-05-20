@@ -1,0 +1,50 @@
+---
+title: signatureTransfer（送信）
+description: eth-twc-sdk-js/signatureTransfer/* の sendTx API。
+---
+
+# `eth-twc-sdk-js/signatureTransfer/*` — `sendTx`
+
+各モジュールは **`sendTx`** を exportします。
+
+```typescript
+import { sendTx } from "eth-twc-sdk-js/signatureTransfer/single";
+```
+
+**各関数の先頭**で共通の前提チェック（`assertSignatureTransferContext` など）が走ります。
+
+1. 内部の **TWC 想定**チェック
+2. `assertPublicWalletSameSupportedChain(publicClient, wallet)`
+3. `assertSignedDomainMatchesClientAndConfig(publicClient, signedData.domain, …)`
+
+**送信モジュールは `signedDataSchema` を呼びません**。JSON から復元した不整合データはシミュレーションで失敗しうるため、オフチェーンでは **`signedDataSchema.assert`** の利用を推奨します（各 variant と同じ import パス）。
+
+---
+
+## `signatureTransfer/single` — `sendTx`
+
+**コントラクト**: `transferWithAuthorization` 単一路（8 引数）
+
+ペイロード型: **`SignedSingleTransfer`**（`executor` は型に含まれないが、送信者アカウントは EIP-712 の `executor` と一致させること）。
+
+Executor の詳細は [utils — assertSignedDomainMatchesClientAndConfig](/sdk-js/api/utils) を参照。
+
+---
+
+## `signatureTransfer/unified` — `sendTx`
+
+Uni をコントラクトに載せるオーバーロード。**公開名 unified**、`SignedUnifiedTransfer`。
+
+---
+
+## `signatureTransfer/batch` — `sendTx`
+
+`SignedBatchTransfer` — `CommittedTransferDetail` + `batchCommitment`。
+
+---
+
+## `signatureTransfer/cancelAuthorization` — `sendTx`
+
+コントラクト: `cancelAuthorization(authorizer, commitment, signature)`。
+
+署名 API は [`sign` の節](/sdk-js/api/sign) を参照してください。

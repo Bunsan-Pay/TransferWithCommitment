@@ -1,0 +1,24 @@
+---
+title: FAQ — JS SDK
+description: よくある疑問と答え。
+---
+
+# FAQ
+
+## Q. `verify` の第 3 引数に `executor` は要る？
+
+**不要です。** 検証スキーマは `from` / `token` / `to` / `value` / `commitment` のみです。イベントの中身と照合します。
+
+## Q. Self-Call で `details` を空にしたら？
+
+署名経路では arktype が弾きますが、Self-Call では **空配列を SDK が弾かない**ため、コントラクトが revert する可能性があります。**空の明細を渡さない**でください。
+
+## Q. Signed バンドルを JSON で送れる？
+
+できますが **`bigint` の扱い**に注意（文字列化推奨）。Executor 側で受け取ったら、種別ごとに **`signedDataSchema.assert`** で検証してから **`signatureTransfer/<variant>` の `sendTx`** に渡してください（一覧は [型と arktype](/sdk-js/api/types)）。
+
+詳細リファレンス: [署名（`signatureTransfer/*/sign`）](/sdk-js/api/sign)。
+
+## Q. `cancelAuthorization` はいつ使う？
+
+承認済みの署名付き送金を **無効化**したいとき。EIP-712 型 `CancelAuthorization` とコントラクトの `cancelAuthorization` に対応。詳細は [署名ページ](/sdk-js/api/sign#signaturetransfercancelauthorization--sign)。

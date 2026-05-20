@@ -1,0 +1,29 @@
+---
+title: CI と開発フロー
+description: Docker Compose と scripts によるローカル再現。GitHub Actions との対応。
+---
+
+# CI と開発フロー
+
+ローカルで **CI に近い手順**を再現するには、ホストに **`docker` と `docker compose`（v2）** があるだけで足ります。`forge` / `anvil` / `slither` / `bun` / `cargo` などは **コンテナ内**で解決されます。
+
+## よく使うコマンド
+
+| 目的 | コマンド（リポジトリルートから） |
+| --- | --- |
+| contracts の CI（forge fmt/build/test + slither） | `./scripts/ci-contracts.sh` |
+| Slither のみ | `./scripts/slither.sh` |
+| `sdk_js` 結合テスト | `./scripts/test-sdk-js-integration.sh` |
+| `sdk_rust` 結合テスト | `./scripts/test-sdk-rust-integration.sh` |
+| キャッシュ・ボリューム破棄 | `docker compose -f docker/compose.yml down -v` |
+
+## GitHub Actions
+
+contracts 系は **リポジトリの `.github/workflows/contracts-ci.yml`** で **`docker compose -f docker/compose.yml run ...`** と同じ流れを実行します（`contracts/**` 等のパスでトリガー）。中身は上記 `scripts` と同じ compose サービスを呼び出します。
+
+SDK 専用の別ワークフローが増えた場合も、原則として **`docker/compose.yml` のサービス**と `scripts/*.sh` を正とします（このページを更新してください）。
+
+## 関連
+
+- コントラクト開発の詳細: [Contracts 開発・ツールチェーン](/contributing/contracts-development)
+- ドキュメントのプレビュー: [ドキュメントサイト](/contributing/docs-site)

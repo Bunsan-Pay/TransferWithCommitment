@@ -1,0 +1,26 @@
+---
+title: FAQ — Rust SDK
+description: よくある質問。
+---
+
+# FAQ
+
+## Q. JS SDK とエラーモデルが違うのはなぜ？
+
+Rust 側は **`Result<T, SdkError>`** に統一。JS 側は多くが **例外**。意味の対応は [SdkError](/sdk-rust/api/sdk-error) の表と、各 JS API ページの「失敗時」を見比べてください。
+
+## Q. `verify` は JSON-RPC のレシートに依存しますか？
+
+はい。`get_transaction_receipt` が **`None`** のとき **`ReceiptNotFound`** です。
+
+## Q. `EmptyTransferDetails` が出た
+
+Uni またはバッチの **明細配列が空**のときです。Self-Call でも [`send_transaction::self_transfer`](/sdk-rust/api/self-transfer) がコントラクト呼び出し前に拒否します（JS の Self-Call 用 arktype は空配列を許す場合がある点と対比）。
+
+## Q. ドメインとチェーンが合わない
+
+`DomainChainIdMismatch` や `DomainVerifyingContractMismatch` は、署名に使った EIP-712 `domain` と、送信時の RPC チェーン・**そのクレートが想定する TWC デプロイ** の不一致を示します。Executor 用プロバイダと署名時のプロバイダを取り違えていないか確認してください（[sign](/sdk-rust/api/sign) と [signature_transfer](/sdk-rust/api/signature-transfer)）。列挙子の説明は [SdkError](/sdk-rust/api/sdk-error)。
+
+## Q. JS の `verify` と同じことをしたい
+
+引数形は [VerifyArgs](/sdk-rust/api/verify)（[`verify` 関数](/sdk-rust/api/verify)）。RPC 前提の限界は [Off-chain verification の限界（JS）](/sdk-js/guides/verification-limits) と同趣旨です。

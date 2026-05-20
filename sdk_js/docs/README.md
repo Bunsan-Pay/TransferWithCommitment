@@ -4,7 +4,7 @@
 
 - **パッケージ名**: `eth-twc-sdk-js`
 - **ベース**: [viem](https://viem.sh/) の `PublicClient` / `WalletClient`
-- **サブパス import** のみ（例: `eth-twc-sdk-js/sign`）。ルートの一括エントリはありません。
+- **サブパス import** のみ（例: `eth-twc-sdk-js/selfTransfer/single`）。ルートの一括エントリはありません。
 
 ---
 
@@ -86,14 +86,26 @@ graph LR
 
 ---
 
+## Commitment（`bytes32`）の導出
+
+本 SDK は **`commitment` を生成するヘルパを提供しない**。外部プロトコル（例: Nostr）とランダム nonce を共有するスキームとの**相互運用性**をアプリで選べるようにし、かつハッシュ関数の選択を SDK に固定して**安全性の単一障害点**にならないようにするためである。
+
+利用者はオフチェーンで **`commitment` を導出する責任**を負う。少なくとも **暗号学的にランダムな `r`** と **安全なハッシュ関数 `H`** を用いて、
+
+**`commitment = H(message || r)`**
+
+（`message` はアプリのスキーマに従うバイト列）とすることを明示的に推奨する。`H` の具体や `message` のエンコードはアプリと合意者間で定義する。
+
+---
+
 ## 想定する操作と使用例
 
-以下は **SDK がカバーする役割** を示す最小例です。`commitment` の作り方（ペイロードと nonce のハッシュ等）はアプリのスキーマに依存するため、例ではプレースホルダとしています。
+以下は **SDK がカバーする役割** を示す最小例です。`commitment` の作り方は上記のとおりアプリの責任であり、例ではプレースホルダとしています。
 
 ### 共通の前提
 
-1. **`config.transferWithCommitmentAddress`** を、デプロイ済み `TransferWithCommitment` のアドレスに設定する（ゼロアドレスのままでは API が失敗します）。ビルド時置換やフォークした `config` の利用も可です。
-2. **`PublicClient` / `WalletClient` の `chain` が `supportedChains` に含まれる**こと（[設定](#設定-config)参照）。
+1. **`config.transferWithCommitmentAddress`** が指す **CREATE2 canonical TWC** が、接続チェーンにデプロイ済みであること（未デプロイでは `eth_getCode` で API が失敗します）。
+2. **`PublicClient` / `WalletClient` に `chain`（`chain.id`）が設定**されていること。
 3. ERC-20 について、**送信者が TWC コントラクトに `approve` 済み**であること（ルート README のシーケンスどおり、通常は一度限りの十分な額）。
 
 ```typescript
@@ -111,19 +123,19 @@ const walletClient = createWalletClient({ account, chain: mainnet, transport: ht
 
 ### 1. Self-Call — 送信者が自分で `transfer` を送る
 
-ルート README の **Self-Call** シーケンスに対応します。**EIP-712 署名は不要**です。`sendTransaction/selfTransfer` の `transfer` がコントラクトの `transfer(token, to, value, commitment)` に相当します。
+ルート README の **Self-Call** シーケンスに対応します。**EIP-712 署名は不要**です。`eth-twc-sdk-js/selfTransfer/single` の `sendTx` がコントラクトの `transfer(token, to, value, commitment)` に相当します。
 
 ```typescript
-import { transfer } from "eth-twc-sdk-js/sendTransaction/selfTransfer";
+import { sendTx } from "eth-twc-sdk-js/selfTransfer/single";
 import { verify } from "eth-twc-sdk-js/verify";
 import type { Hex } from "viem";
 
 const token = "0x…" as Hex;
 const to = "0x…" as Hex;
 const value = 1_000_000n;
-const commitment = "0x…" as Hex; // アプリのスキーマに従って算出
+const commitment = "0x…" as Hex;
 
-const txHash = await transfer(publicClient, walletClient, account.address, {
+const txHash = await sendTx(publicClient, walletClient, account.address, {
   token,
   to,
   value,
@@ -141,26 +153,27 @@ await verify(publicClient, txHash, {
 });
 ```
 
-**バッチ・Unified** も同様に、同モジュールの `batchTransfer` / `unifiedTransfer` でコントラクトのオーバーロードに対応します（引数の形は `types/args/selfTransfer` を参照）。
+**バッチ・Unified（Self-Call）** は `selfTransfer/batch`、`selfTransfer/unified` の **`sendTx`** を使います。
 
 ---
 
 ### 2. Delegate to Executor — 署名して Executor が `transferWithAuthorization`
 
-ルート README の **Delegate to Executor** に対応します。
-
-1. **送信者**が `sign` で EIP-712 署名済みバンドル（`Signed*`）を取得する。
-2. **Executor**（別アドレス）が `sendTransaction/signatureTransfer` でトランザクションを送信する（ガスは Executor 負担）。
-3. 検証者はトランザクションハッシュと期待パラメータで `verify` する。
+1. **送信者**が `signatureTransfer/*/sign` で EIP-712 署名済みバンドルを取得する。
+2. **Executor** が **`signatureTransfer/*/sendTx`** でトランザクションを送信する（ガスは Executor 負担）。
+3. 検証は `verify`。
 
 ```typescript
-import { singleTransfer as signSingleTransfer } from "eth-twc-sdk-js/sign";
-import { singleTransfer as sendAuthorizedSingle } from "eth-twc-sdk-js/sendTransaction/signatureTransfer";
+import {
+  sign,
+  sendTx,
+  signedDataSchema,
+  type SignedSingleTransfer,
+} from "eth-twc-sdk-js/signatureTransfer/single";
 import { verify } from "eth-twc-sdk-js/verify";
 import type { Hex } from "viem";
 
-// --- 送信者側: 署名（Signer の account は EIP-712 の from と一致させる） ---
-const signed = await signSingleTransfer(
+const signed: SignedSingleTransfer = await sign(
   publicClient,
   senderWallet,
   sender.address,
@@ -168,38 +181,30 @@ const signed = await signSingleTransfer(
     from: sender.address,
     to: recipient,
     token,
-    executor: executor.address, // オンチェーンで許可する実行者
+    executor: executor.address,
     value,
     commitment,
   },
 );
 
-// --- Executor 側: オンチェーン送信 ---
-const txHash = await sendAuthorizedSingle(
+// wire 復元など I/O が挟まるなら検証してから送信
+signedDataSchema.assert(signed);
+
+const txHash = await sendTx(
   publicClient,
   executorWallet,
   executor.address,
   signed,
 );
-
-await publicClient.waitForTransactionReceipt({ hash: txHash });
-
-await verify(publicClient, txHash, {
-  from: sender.address,
-  token,
-  to: recipient,
-  value,
-  commitment,
-});
 ```
 
-`uniCommitTransfers` / `batchTransferWithCommit` に対応する署名・送信も、それぞれ `sign` と `sendTransaction/signatureTransfer` の同名関数で行います。
+Uni / Batch / Cancel は **`signatureTransfer/unified`、`/batch`、`/cancelAuthorization`** の `sign` / `sendTx` を同様に使います。
 
 ---
 
 ### 3. One-Time Receive-Verify（Verifier が executor）
 
-ルート README の **OneTime Receive-Verify** は、署名メッセージの **`executor` を Verifier（検証者）自身のアドレスに固定**し、Verifier のウォレットで `transferWithAuthorization` を呼ぶパターンです。SDK の API は **§2 と同じ**で、`executor` と `sendTransaction` に使う `WalletClient` を Verifier に揃えます。
+署名メッセージの **`executor` を Verifier（検証者）自身のアドレスに固定**し、Verifier のウォレットで `transferWithAuthorization` を呼ぶパターン。**§2 と同じ公開 API**で、`executor` と `signatureTransfer/*/sendTx` に使う `WalletClient` を Verifier に揃えます。
 
 ---
 
@@ -207,70 +212,41 @@ await verify(publicClient, txHash, {
 
 | エクスポート | 説明 |
 |--------------|------|
-| `transferWithCommitmentAddress` | デプロイ済みコントラクトアドレス。**ゼロアドレスでは各 API が `assertTransferContractConfigured` で失敗**します。 |
-| `supportedChains` | 対応チェーンの配列（viem の chain 定義）。 |
-| `ZERO_TRANSFER_ADDRESS` | 未設定を表すゼロアドレス定数。 |
-| `assertTransferContractConfigured()` | アドレスが設定済みか検査（各 API 内部でも使用）。 |
+| `transferWithCommitmentAddress` | CREATE2 決定論アドレス（`twcConstants.ts`）。接続チェーンで **コードが無い**と各 API は失敗します。 |
+| CREATE2 / EIP-712 定数 | `TRANSFER_WITH_COMMITMENT_CREATE2_SALT`、`EIP712_DOMAIN_*` など（singleton factory は `contracts` 側） |
 
 ```typescript
-import {
-  transferWithCommitmentAddress,
-  supportedChains,
-} from "eth-twc-sdk-js/config";
+import { transferWithCommitmentAddress } from "eth-twc-sdk-js/config";
 ```
 
 ---
 
 ## API リファレンス
 
-### `eth-twc-sdk-js/sign`
+### EIP-712 署名 — `eth-twc-sdk-js/signatureTransfer/*/sign`
 
-送信者ウォレットで **EIP-712 署名**を行い、`Signed*` 型のバンドルを返します。事前に `getEip712Domain` で domain を取得し、OpenZeppelin EIP712 と整合するよう **ゼロの `salt` は署名用 domain から除いたうえで**署名します（戻り値の `domain` も同じ正規化後）。各関数は **`types/args/signatureTransfer` の arktype で `args` を実行時検証**し、`validAfter` / `validBefore` は **`args` 内**で指定します（省略時は **`0n`** と **`UINT256_MAX`**）。続けて **`account`（`signTypedData` に渡す署名者）が、メッセージの `from`（単一・Uni・バッチ）または `authorizer`（キャンセル）と一致するか**を検証します（アドレスの大小文字は区別しません）。不一致のままではオンチェーンの署名検証で失敗するため、**署名前に例外**にします。検証後のオブジェクト（デフォルト適用済み）で `signTypedData` と戻り値を組み立てます。
+送信者側。各ファイルで **`sign`** が exportされます。共通で `argsSchema.assert`、`domainForTypedDataSign`（ゼロ salt 除去）、`signTypedData` を経由します。「Uni」相当は公開サブパス **`signatureTransfer/unified`**（primaryType は `UniCommitTransfers`）。
 
-| 関数 | 概要 |
-|------|------|
-| `singleTransfer(publicClient, wallet, account, args)` | 単一送金の署名。`args` に `from`, `to`, `token`, `executor`, `value`, `commitment` に加え、任意で `validAfter`, `validBefore`（省略時は上記デフォルト）。`validAfter <= validBefore` が必須。 |
-| `uniCommitTransfers(...)` | 複数 `TransferDetail` を 1 コミットメントにまとめる署名。明細は **1 件以上**、時間窓は上記と同様。 |
-| `batchTransferWithCommit(...)` | 明細ごとにコミットメントを持つバッチの署名。明細は **1 件以上**、時間窓は上記と同様。 |
-| `cancelAuthorization(...)` | 承認キャンセル用の署名。 |
+### Self-Call 送信 — `eth-twc-sdk-js/selfTransfer/*`
 
-引数型は `eth-twc-sdk-js/types/args/signatureTransfer`、戻り値の型は `eth-twc-sdk-js/types/signedData` を参照してください。
+送信者が **自分で** `simulateContract` → `writeContract`。各 **`sendTx`** の先頭で `argsSchema.assert`。
 
----
+### Executor 送信 — `eth-twc-sdk-js/signatureTransfer/*/sendTx`
 
-### `eth-twc-sdk-js/sendTransaction/selfTransfer`
+`transferWithAuthorization` / `cancelAuthorization`。オフチェーンでは **`signedDataSchema`** による検証を推奨。
 
-送信者が **自分で** `transfer` を呼ぶ経路（Self-Call）。先に **`types/args/selfTransfer` の arktype で `args` を実行時検証**し、その後 `simulateContract` → `writeContract`。
+### `eth-twc-sdk-js/abi`
 
-| 関数 | コントラクト |
-|------|----------------|
-| `transfer` | `transfer(token, to, value, commitment)` |
-| `unifiedTransfer` | `transfer(details, commitment)` |
-| `batchTransfer` | `transfer(details)` |
-
-引数型: `eth-twc-sdk-js/types/args/selfTransfer`。Uni / バッチで **空の `details`** を渡すと、スキーマでは弾かずコントラクト側で失敗しうる点に注意（署名用 `types/args/signatureTransfer` とは異なる）。
-
----
-
-### `eth-twc-sdk-js/sendTransaction/signatureTransfer`
-
-**Executor**（`WalletClient`）が `transferWithAuthorization` / `cancelAuthorization` を呼ぶ経路。署名済みバンドルの `domain` がクライアントのチェーンおよび `config` のコントラクトアドレスと一致することを検証します。バンドル本体の **arktype 検証はモジュール内では行わない**（`types/signedData` をオフチェーンで検証したい場合は呼び出し側で利用）。
-
-| 関数 | コントラクト |
-|------|----------------|
-| `singleTransfer` | `transferWithAuthorization`（単一送金） |
-| `unifiedTransfer` | 同上（Unified） |
-| `batchTransfer` | 同上（バッチ） |
-| `cancelAuthorization` | `cancelAuthorization` |
-
----
+ABI の再エクスポート。
 
 ### `eth-twc-sdk-js/verify`
 
 | 関数 | 説明 |
 |------|------|
-| `verify(publicClient, txHash, args)` | `args` を arktype（`verifyArgs.assert`）で検証したうえで、レシートから `TransferWithCommitmentSent` を抽出し、**ペイロードが `args` と一致し**、かつ **`config.transferWithCommitmentAddress` から発火したログ**が少なくとも 1 件あることを確認。満たさなければ例外。 |
-| `getTransferWithCommitmentSentEventLogs(publicClient, txHash)` | レシートから `TransferWithCommitmentSent` をパースし、**同じく当該コントラクトアドレス由来のログだけ**を返す。内容による `args` 照合は行わない。**該当なしは空配列**（例外にしない）。トランザクションハッシュだけ分かっているときの列挙用。 |
+| `verify(publicClient, txHash, args)` | `verifyArgsSchema.assert(args)` が最優先。その後 **TWC デプロイ確認**（`getCode`）、レシート照合。 |
+| `getTransferWithCommitmentSentEventLogs(publicClient, txHash)` | 該当コントラクトからのイベントログのみ。**0 件は空配列**。 |
+
+スキーマ `verifyArgsSchema` と型 `VerifyArgs` は **`eth-twc-sdk-js/verify`** から export されています。
 
 **注意**: 検証は RPC が返すレシートに依存します。信頼できる RPC・確定ブロック数などは運用で担保してください（[sdk_js/README.md](../README.md) のセキュリティ節）。
 
@@ -280,24 +256,23 @@ import {
 
 | 関数 | 説明 |
 |------|------|
-| `isSupportedChain(client)` | クライアントの `chain.id` が `supportedChains` に含まれるか。 |
+| `assertTransferContractDeployed(publicClient, address?)` | canonical アドレス（省略時は config）に `eth_getCode` でコードがあるか。 |
 | `chainIdToBig(id)` | `number` / `bigint` を `bigint` に統一。 |
-| `assertPublicWalletSameSupportedChain(publicClient, wallet)` | 両方が対応チェーンかつ **同一 chain id** か。`sign` や `sendTransaction/*` が内部で利用。 |
-| `assertSignedDomainMatchesClientAndConfig(publicClient, domain, configuredContract)` | 署名バンドルの `domain.chainId` / `verifyingContract` がクライアントと `config` と一致するか。`signatureTransfer` が内部で利用。 |
+| `assertPublicWalletSameChain(publicClient, wallet)`（別名 `…SameSupportedChain`） | 両方に同じ `chain.id`。 |
+| `assertEip712DomainFromContractMatchesExpected` | オンチェーン `eip712Domain` と期待値の整合。 |
+| `assertSignedDomainMatchesClientAndConfig(publicClient, domain, configuredContract)` | 署名バンドルの domain がクライアントと `config` と一致するか。 |
 
 ---
 
-### 型・ABI（`eth-twc-sdk-js/types/*`）
+### 型・共通（抜粋）
 
 | サブパス | 内容 |
 |----------|------|
-| `types/signedData` | EIP-712 署名済みバンドル（`SignedTransferWithCommit` 等）と `Eip712SignedDomain`。 |
-| `types/args/signatureTransfer` | 署名入力（Executor 等を含む）。 |
-| `types/args/selfTransfer` | Self-Call 用 `transfer` 引数（`from` なし）。 |
-| `types/transferDetail` | `TransferDetail` / `CommittedTransferDetail`。 |
-| `types/Eip712Type` | viem の `signTypedData` 用 types 定義。 |
-| `types/abi` | `TransferWithCommitment` の ABI。 |
-| `types/utils` | arktype 用スカラー型・`UINT256_MAX` 等。`uint256` は `0n`〜`UINT256_MAX` の範囲。`bytes` は ERC-1271 等を考慮し署名長を厳密には限定しない。 |
+| `signatureTransfer/<variant>` | **`argsSchema`**, **`signedDataSchema`**, **`eip712Types`**, 型一式。 |
+| `selfTransfer/<variant>` | **`argsSchema`**, **`sendTx`** 入力型。 |
+| `abi` | コントラクト ABI |
+| `types/utils` | スカラー arktype と `Hex0x`, `UINT256_MAX`。 |
+| `types/transferDetail` | `transferDetail`, `committedTransferDetail`（Self / 署名の双方で利用）。 |
 
 ---
 

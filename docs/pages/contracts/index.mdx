@@ -1,0 +1,26 @@
+---
+title: Contracts
+description: TransferWithCommitment Solidity 実装の概要。
+---
+
+# Contracts（`contracts/`）
+
+**ERC-20 の送金**に **任意の `bytes32` commitment** を結びつけ、**`TransferWithCommitmentSent`** イベントでオンチェーンに記録するラッパー実装です。送金経路は **`SelfTransfer`**（`msg.sender` が直接送金）と **`SignatureTransfer`**（EIP-712 署名を Executor が実行）に分かれます。
+
+用語やプロトコル要件の前提は、先に **[Fundamentals](/architecture/fundamentals)**（または **[Architecture](/architecture)** 全体）を読んでおくと、以下の各ページをスムーズに読めます。
+
+## この章の構成
+
+| ページ                                              | 内容                                                        |
+| --------------------------------------------------- | ----------------------------------------------------------- |
+| [クラス／継承図](/contracts/class-diagram)          | 主要 `.sol` の関係（Mermaid classDiagram）                  |
+| [State とリプレイ防止](/contracts/state-and-replay) | `State.sol`・`replayGuard`・ビットマップ                    |
+| [Events と Hash](/contracts/events-and-hash)        | `Events.sol`・`Hash.sol` の役割                             |
+| [SelfTransfer](/contracts/self-transfer)            | `transfer` の各オーバーロード                               |
+| [SignatureTransfer](/contracts/signature-transfer)  | EIP-712・`transferWithAuthorization`・`cancelAuthorization` |
+| [仕様上の要点](/contracts/specification-highlights) | 署名回数・immutable 方針・非対応トークン・明細長など        |
+| [Reference](/contracts/reference/transfer-with-commitment) | 全関数・型・定数の引数・戻り値・前提条件・事後条件          |
+
+**Foundry / Docker / Slither** の作業手順は **[Contributing: Contracts 開発](/contributing/contracts-development)** を参照してください。
+
+実装の**関数レベルの前提条件・事後条件の全表**はリポジトリの `contracts/SPEC.md` が一次情報です。このサイトでは**横断的に追いやすい要約**に留めます。

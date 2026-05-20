@@ -3,7 +3,11 @@
  * `bun test --preload ./test/integration/preload.ts ...` でのみ使用。
  */
 import { mock } from "bun:test";
-import { anvil } from "viem/chains";
+import {
+  EIP712_DOMAIN_NAME,
+  EIP712_DOMAIN_VERSION,
+  TRANSFER_WITH_COMMITMENT_CREATE2_SALT,
+} from "../../twcConstants.ts";
 
 const addr = process.env.TWC_ADDRESS;
 if (!addr || !/^0x[0-9a-fA-F]{40}$/.test(addr)) {
@@ -13,21 +17,11 @@ if (!addr || !/^0x[0-9a-fA-F]{40}$/.test(addr)) {
 }
 
 mock.module(new URL("../../config.ts", import.meta.url).pathname, () => {
-  const ZERO_TRANSFER_ADDRESS =
-    "0x0000000000000000000000000000000000000000" as const;
   const transferWithCommitmentAddress = addr as `0x${string}`;
   return {
-    ZERO_TRANSFER_ADDRESS,
+    EIP712_DOMAIN_NAME,
+    EIP712_DOMAIN_VERSION,
+    TRANSFER_WITH_COMMITMENT_CREATE2_SALT,
     transferWithCommitmentAddress,
-    supportedChains: [anvil],
-    assertTransferContractConfigured(): void {
-      if (
-        transferWithCommitmentAddress.toLowerCase() === ZERO_TRANSFER_ADDRESS
-      ) {
-        throw new Error(
-          "transferWithCommitmentAddress is not configured (zero address).",
-        );
-      }
-    },
   };
 });

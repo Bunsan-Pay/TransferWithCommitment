@@ -1,0 +1,82 @@
+---
+title: utils モジュール
+description: eth-twc-sdk-js/utils のヘルパ関数。
+---
+
+# `eth-twc-sdk-js/utils`
+
+ファイル: `sdk_js/utils.ts`
+
+## チェーンとデプロイ
+
+SDK は **チェーン allowlist を持ちません**。代わりに次を行います。
+
+- クライアントに **`chain.id` が設定**されていること（EIP-712 のドメイン整合に必要）。
+- canonical `transferWithCommitmentAddress` に対する **`eth_getCode` が空でない**こと（未デプロイのチェーンでは署名・送信・検証前に失敗）。
+
+利用するネットワークの viem `chain` は **アプリ側で** `createConfig` / `createPublicClient` に渡してください。
+
+---
+
+## `chainIdToBig(id)`
+
+引数: `number | bigint`
+
+戻り値: `bigint`
+
+EIP-712 domain の `chainId` を `bigint` に正規化します。
+
+---
+
+## `assertPublicWalletSameChain(publicClient, wallet)`
+
+引数:
+
+- `publicClient` — `PublicClient`
+- `wallet` — `WalletClient`
+
+戻り値: `void`
+
+**検証**: 両方に `chain.id` が設定され、**同じ数値**であること。
+
+**非推奨エイリアス**: `assertPublicWalletSameSupportedChain`（同じ実装）。
+
+**失敗時**
+
+- 片方でも `chain` 未設定: `"Chain is not set on public client and/or wallet client"`
+- id 不一致: `"PublicClient and WalletClient chain mismatch: …"`
+
+---
+
+## `assertTransferContractDeployed(publicClient, contractAddress?)`
+
+引数:
+
+- `publicClient` — `PublicClient`
+- `contractAddress` — 省略時は `transferWithCommitmentAddress`
+
+`getCode` が `undefined` または `"0x"` のとき、CREATE2 デプロイを案内する `Error` を投げます。
+
+---
+
+## `assertEip712DomainFromContractMatchesExpected(publicClient, eip712)`
+
+`getEip712Domain` の戻り値について、`name` / `version` / `verifyingContract` / `chainId` が公開クライアントのチェーンと SDK の期待と一致することを検証します。
+
+---
+
+## `assertSignerMatchesEip712Role(signer, messageAddress, role)`
+
+引数:
+
+- `signer` — `Hex`
+- `messageAddress` — EIP-712 メッセージ上の `from` または `authorizer`
+- `role` — `"from"` | `"authorizer"`
+
+**検証**: 小文字化したアドレス比較。
+
+---
+
+## `assertSignedDomainMatchesClientAndConfig(publicClient, domain, configuredContract)`
+
+署名済みバンドルの `domain.chainId` と `domain.verifyingContract` が、公開クライアントのチェーンと `configuredContract` と一致することを検証します（Executor 送信前のガード）。

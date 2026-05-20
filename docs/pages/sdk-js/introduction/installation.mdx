@@ -1,0 +1,25 @@
+---
+title: Installation — JS SDK
+description: パッケージ導入（eth-twc-sdk-js と viem）。
+---
+
+# Installation
+
+## アプリに追加する
+
+パッケージ名 **`eth-twc-sdk-js`**：
+
+```bash
+# Bun
+bun add eth-twc-sdk-js viem
+
+# npm
+npm install eth-twc-sdk-js viem
+
+# pnpm
+pnpm add eth-twc-sdk-js viem
+```
+
+`eth-twc-sdk-js` は **`viem` を直接依存に含めて**いますが、`^2` のどのマイナーが解決されるかはロックファイル次第です。**アプリ側でも `viem` を明示的に追加**し、プロジェクトで **同じメジャー（^2）** が一つだけ解決されるようにしてください。TypeScript を使う場合は **TS 5** をプロジェクトに入れておくと型がきれいに乗ります（pure JS でも動作はします）。
+
+リポジトリ内で `sdk_js` をビルドする手順は [Contributing: リポジトリ構成と規約](/contributing/repository-layout) へ分離しています。

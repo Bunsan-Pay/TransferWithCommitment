@@ -2,11 +2,13 @@
 
 任意のコミットメントともにERC20トークンを送金したことを証明
 
-| directory    | summary          |
-| ------------ | ---------------- |
-| `/contracts` | コントラクト実装 |
-| `/sdk_js`    | Javascript SDK   |
-| `/sdk_rust`  | Rust SDK         |
+| directory      | summary                      |
+| -------------- | ---------------------------- |
+| `/contracts`   | コントラクト実装             |
+| `/sdk_js`      | JavaScript / TypeScript SDK  |
+| `/sdk_react`   | React フック（wagmi + Query） |
+| `/sdk_rust`    | Rust SDK                     |
+| `/docs`        | 本ドキュメントサイト（Vocs） |
 
 ### Features
 
@@ -36,9 +38,9 @@ graph LR
         Proof(Commitment<br/>generator)
     end
     subgraph Onchain[Ethereum]
-        subgraph Extention[TransferWithCommitment contract]
+        subgraph Extension[TransferWithCommitment contract]
             Access(Access / Policy)
-            Commit[(Commitment<br/>registory)]
+            Commit[(Commitment<br/>registry)]
             Event(Event<br/>emission)
         end
         Token(ERC-20 Token)
@@ -72,9 +74,9 @@ graph LR
         Executor([Executor])
     end
     subgraph Onchain[Ethereum]
-        subgraph Extention[TransferWithCommitment contract]
+        subgraph Extension[TransferWithCommitment contract]
             Access(Access / Policy<br/>)
-            Commit[(Commitment<br/>registory)]
+            Commit[(Commitment<br/>registry)]
             Event(Event<br/>emission)
         end
         Token(ERC-20 Token)
@@ -114,7 +116,7 @@ sequenceDiagram
     Sender->>Token: Call(One time only)<br/>approve(contractAddress, type(uint256).max)
     Verifier->>Sender: Send verifiable schema
     Note over Sender: Create<br/>payload, commitment<br/><br/>commitment = H(payload, nonce)
-    Sender->>+Contract: Call<br/>transfer(token, to, value commitment)
+    Sender->>+Contract: Call<br/>transfer(token, to, value, commitment)
     Contract->>Token: Call<br/>transferFrom(msg.sender, to, value)
     Contract->>Block: Emit event<br/>(msg.sender, to, token, value, commitment)
     Contract-->>-Sender: Receive TxId

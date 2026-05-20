@@ -1,0 +1,122 @@
+---
+title: "Tutorial: Self-Call（エンドツーエンド）"
+description: viem クライアント作成から transfer まで、具体的なコードで追う（検証は verify チュートリアルへ）。
+---
+
+# Tutorial: Self-Call
+
+この章では **送信者が自分で `transfer` を送る経路**だけを、手順付きで実装します。前提として次を満たしてください。
+
+- インストールした **SDK が想定する TWC デプロイ**と、接続先が一致している（不整合のときは [エラーと切り分け](/sdk-js/guides/errors) を参照。ビルドの責務は [Contributing: JS リリース](/contributing/sdk-js-release)）。
+- 送金元 EOA が、送金する **ERC-20** について TWC へ **`approve` 済み**である。
+- `PublicClient` / `WalletClient` の `chain` が設定され、**canonical TWC** がそのチェーンにデプロイ済みである（[config](/sdk-js/api/config)；デプロイはリポジトリの `contracts/TWC_CREATE2.md`）。
+
+## Step 1 — 依存と viem クライアント
+
+```bash
+# Bun
+bun add eth-twc-sdk-js viem
+
+# npm
+npm install eth-twc-sdk-js viem
+
+# pnpm
+pnpm add eth-twc-sdk-js viem
+```
+
+```typescript
+import { createPublicClient, createWalletClient, http } from "viem";
+import { mainnet } from "viem/chains";
+import { privateKeyToAccount } from "viem/accounts";
+
+const rpcUrl = process.env.RPC_URL ?? "https://…";
+const publicClient = createPublicClient({
+  chain: mainnet,
+  transport: http(rpcUrl),
+});
+
+const account = privateKeyToAccount("0x…"); // 実鍵は環境変数等へ
+const walletClient = createWalletClient({
+  account,
+  chain: mainnet,
+  transport: http(rpcUrl),
+});
+```
+
+`mainnet` の代わりに Sepolia 等でも構いません。**viem の `chain` 定義**をクライアントに渡してください。
+
+## Step 1b — トークン `approve`（未だなら）
+
+TWC は送金時に `transferFrom(msg.sender, 受取人, value)` するため、**ERC-20 について TWC スポンダへの allowance** が先に必要です。viem の例（`token` / TWC デプロイ / `account` は自分の環境に合わせる。TWC デプロイは **利用中の SDK が想定するネットワーク上**のものに合わせる）:
+
+```typescript
+import { erc20Abi } from "viem";
+import { transferWithCommitmentAddress } from "eth-twc-sdk-js/config";
+
+const token = "0x…" as `0x${string}`; // 送金する ERC-20 トークンのアドレス
+
+const hash = await walletClient.writeContract({
+  address: token,
+  abi: erc20Abi,
+  functionName: "approve",
+  args: [transferWithCommitmentAddress, 2n ** 256n - 1n],
+  account,
+  chain: walletClient.chain,
+});
+await publicClient.waitForTransactionReceipt({ hash });
+```
+
+**失敗時**は [エラーと切り分け](/sdk-js/guides/errors) の allowance / チェーン系を参照。
+
+## Step 2 — commitment を用意する
+
+SDK は commitment を生成しません。例としてアプリ固有の `message` を abi.encode の代わりにプレーンな UTF-8 バイト列とし、ランダム `r` と混ぜて `keccak256` します（**本番のスキームはプロダクトで固定してください**）。
+
+```typescript
+import { keccak256, toBytes, toHex, concat } from "viem";
+
+function deriveCommitment(message: string): {
+  commitment: `0x${string}`;
+  r: `0x${string}`;
+} {
+  const r = crypto.getRandomValues(new Uint8Array(32));
+  const encoded = concat([toBytes(message), r]);
+  return { commitment: keccak256(encoded), r: toHex(r) };
+}
+
+const { commitment, r } = deriveCommitment("invoice-123");
+// r は検証者へ message と共に渡す（検証者が commitment = keccak256(message || r) を再計算するため）
+```
+
+`crypto.getRandomValues` は **ブラウザ**と **Bun**で利用可能です。Node.js だけの環境では `import { webcrypto } from "node:crypto"` の `webcrypto.getRandomValues` 等に読み替えてください。
+
+## Step 3 — Self-Call で送金
+
+```typescript
+import { sendTx } from "eth-twc-sdk-js/selfTransfer/single";
+import type { Hex } from "viem";
+
+const token = "0x…" as Hex;
+const to = "0x…" as Hex;
+const value = 1_000_000n;
+
+const txHash = await sendTx(publicClient, walletClient, account.address, {
+  token,
+  to,
+  value,
+  commitment,
+});
+
+const receipt = await publicClient.waitForTransactionReceipt({ hash: txHash });
+```
+
+`account.address` は **`msg.sender`** になります。別アドレスを渡すとシミュレーションで失敗します。
+
+マイニング後のレシート検証は [Tutorial: レシート検証（verify）](/sdk-js/guides/tutorial-verify) を参照してください。
+
+## Uni / バッチ Self-Call
+
+- **Uni**: `eth-twc-sdk-js/selfTransfer/unified` の `sendTx`
+- **バッチ**: `eth-twc-sdk-js/selfTransfer/batch` の `sendTx`
+
+`TransferDetail` / `CommittedTransferDetail` の形は [型](/sdk-js/api/types) を参照してください。

@@ -1,0 +1,50 @@
+---
+title: selfTransfer
+description: eth-twc-sdk-js/selfTransfer/* — msg.sender 経由の transfer。
+---
+
+# `eth-twc-sdk-js/selfTransfer/*`
+
+実装ディレクトリ: `sdk_js/selfTransfer/{single,batch,unified}/`。
+
+各モジュールは **`sendTx`** を export（ファイル名単位でも区別）。
+
+```typescript
+import { sendTx } from "eth-twc-sdk-js/selfTransfer/single";
+```
+
+すべて **`msg.sender === account`** となるように、`simulateContract` 後に `writeContract` します。
+
+## 共通の事前条件
+
+1. TWC がそのビルドで想定どおり構成されていること（[内部 API](/contributing/sdk-js-internals)）
+2. `assertPublicWalletSameSupportedChain(publicClient, wallet)`
+3. **`argsSchema.assert(args)`**
+
+**Self-Call 側の arktype は `unified` / `batch` の `details` に「1 件以上」の下限を課しません**（署名用 `signatureTransfer/unified|batch` とは異なる）。空配列を渡すと **コントラクト側で revert** しうるため注意してください。
+
+---
+
+## `selfTransfer/single`
+
+**コントラクト**: `transfer(address token, address to, uint256 value, bytes32 commitment)`
+
+---
+
+## `selfTransfer/unified`
+
+**コントラクト**: `transfer(TransferDetail[] details, bytes32 commitment)` のオーバーロード
+
+---
+
+## `selfTransfer/batch`
+
+**コントラクト**: `transfer(CommittedTransferDetail[] details)` のオーバーロード
+
+---
+
+## 失敗例
+
+- allowance 不足 → シミュレーションまたは送信で reject
+- コントラクト未設定・チェーン不一致 → SDK が先に例外
+- ガス不足・RPC エラー → viem が reject

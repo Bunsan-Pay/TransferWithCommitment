@@ -1,0 +1,138 @@
+---
+title: "Tutorial: Self-Call（エンドツーエンド）— React SDK"
+description: Providers から approve・送金まで、wagmi フックで追う（検証は verify チュートリアルへ）。
+---
+
+# Tutorial: Self-Call
+
+この章では **送信者が自分で `transfer` を送る経路**だけを、React（wagmi + TanStack Query）上で手順付きで実装します。前提として次を満たしてください。
+
+- [Providers をセットアップする](/sdk-react/guides/providers-setup) 済みで、**ウォレット接続**できること。
+- インストールした **SDK が想定する TWC デプロイ**と、接続先が一致している（不整合のときは [エラーと切り分け（JS）](/sdk-js/guides/errors) を参照。ビルドの責務は [Contributing: JS リリース](/contributing/sdk-js-release)）。
+- 送金元 EOA が、送金する **ERC-20** について TWC へ **`approve` 済み**である（未了ならこのページの Step 1b）。
+- wagmi の `chain` が設定され、**canonical TWC** がそのチェーンにデプロイ済みである（[JS config](/sdk-js/api/config)、`contracts/TWC_CREATE2.md`）。
+
+ミューテーション・クエリの前提（`publicClient` / `walletClient` / 接続アドレス）は [narrowWriteClients とよくある失敗](/sdk-react/api/clients-errors) も参照してください。
+
+## Step 1 — 依存と wagmi
+
+```bash
+# Bun
+bun add eth-twc-sdk-react eth-twc-sdk-js @tanstack/react-query wagmi viem
+
+# npm
+npm install eth-twc-sdk-react eth-twc-sdk-js @tanstack/react-query wagmi viem
+
+# pnpm
+pnpm add eth-twc-sdk-react eth-twc-sdk-js @tanstack/react-query wagmi viem
+```
+
+`createConfig` の `chains` には利用する viem の `chain` 定義を載せてください（例: `viem/chains` の `mainnet` / `sepolia` など）。
+
+## Step 1b — トークン `approve`（未だなら）
+
+TWC は送金時に `transferFrom(msg.sender, 受取人, value)` するため、**ERC-20 について TWC スポンダへの allowance** が先に必要です。wagmi の `useWalletClient` / `usePublicClient` を使う例（`token` は自分の環境に合わせる）:
+
+```tsx
+import { erc20Abi } from "viem";
+import { transferWithCommitmentAddress } from "eth-twc-sdk-js/config";
+import { usePublicClient, useWalletClient } from "wagmi";
+
+export function ApproveButton({ token }: { token: `0x${string}` }) {
+  const publicClient = usePublicClient();
+  const { data: walletClient } = useWalletClient();
+
+  async function approve() {
+    if (!publicClient || !walletClient) return;
+    const hash = await walletClient.writeContract({
+      address: token,
+      abi: erc20Abi,
+      functionName: "approve",
+      args: [transferWithCommitmentAddress, 2n ** 256n - 1n],
+    });
+    await publicClient.waitForTransactionReceipt({ hash });
+  }
+
+  return (
+    <button type="button" onClick={() => void approve()}>
+      TWC に approve
+    </button>
+  );
+}
+```
+
+**失敗時**は [エラーと切り分け（JS）](/sdk-js/guides/errors) の allowance / チェーン系を参照してください。
+
+## Step 2 — commitment を用意する
+
+SDK は commitment を生成しません。例としてアプリ固有の `message` を UTF-8 バイト列とし、ランダム `r` と混ぜて `keccak256` します（**本番のスキームはプロダクトで固定してください**）。
+
+```typescript
+import { keccak256, toBytes, toHex, concat } from "viem";
+
+function deriveCommitment(message: string): {
+  commitment: `0x${string}`;
+  r: `0x${string}`;
+} {
+  const r = crypto.getRandomValues(new Uint8Array(32));
+  const encoded = concat([toBytes(message), r]);
+  return { commitment: keccak256(encoded), r: toHex(r) };
+}
+
+const { commitment, r } = deriveCommitment("invoice-123");
+// r は検証者へ message と共に渡す（検証者が commitment = keccak256(message || r) を再計算するため）
+```
+
+`crypto.getRandomValues` は **ブラウザ**で利用可能です。背景と別スキームは [Commitment（React）](/sdk-react/guides/commitment)・[Commitment（JS）](/sdk-js/guides/commitment) も参照してください。
+
+## Step 3 — Self-Call で送金
+
+接続アドレスが **`msg.sender`** になります。`useSelfTransfer` の `mutateAsync` に渡す型は **`eth-twc-sdk-js/selfTransfer/single` の `SelfTransferSingleArgs`** です。
+
+```tsx
+import { useSelfTransfer } from "eth-twc-sdk-react";
+import type { SelfTransferSingleArgs } from "eth-twc-sdk-js/selfTransfer/single";
+import type { Hex } from "viem";
+
+export function SendForm({
+  token,
+  to,
+  commitment,
+}: {
+  token: Hex;
+  to: Hex;
+  commitment: Hex;
+}) {
+  const self = useSelfTransfer();
+
+  async function onSubmit() {
+    const args: SelfTransferSingleArgs = {
+      token,
+      to,
+      value: 1_000_000n,
+      commitment,
+    };
+    const txHash = await self.mutateAsync(args);
+    console.log("tx", txHash);
+  }
+
+  return (
+    <button type="button" disabled={self.isPending} onClick={() => void onSubmit()}>
+      {self.isPending ? "送信中…" : "送金"}
+    </button>
+  );
+}
+```
+
+トランザクションハッシュは **`Hex`** で返ります。別アドレスで送ろうとすると（接続と args が噛み合わないと）シミュレーションで失敗します。
+
+マイニング後のレシート検証は [Tutorial: レシート検証（verify）](/sdk-react/guides/tutorial-verify) を参照してください。
+
+## Uni / バッチ Self-Call
+
+- **Uni**: `useSelfUnifiedTransfer` — 引数は `UniCommitTransfersArgs`（複数行が **同じ** `commitment`）。
+- **バッチ**: `useSelfBatchTransfer` — 引数は `BatchTransferWithCommitArgs`。
+
+`TransferDetail` / `CommittedTransferDetail` の形は [型（JS）](/sdk-js/api/types) を参照してください。シナリオとチュートリアル導線は [シーケンス図 — シナリオと実装手順](/architecture/sequences#シナリオと実装手順) を参照してください。
+
+EIP-712 経路（送金者が署名し Executor が送る例）は [Tutorial: EIP-712 + Executor](/sdk-react/guides/tutorial-signature-executor) を参照してください。

@@ -1,6 +1,7 @@
 import { renderHook, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, test } from "bun:test";
 import type { Hex } from "viem";
+import { mainnet } from "viem/chains";
 
 import { useSelfBatchTransfer, useSelfTransfer, useSelfUnifiedTransfer } from "../hooks/selfTransfer.ts";
 import { ADDR, ADDR_B, COMMIT } from "./fixtures.ts";
@@ -43,8 +44,11 @@ describe("useSelfTransfer / useSelfUnifiedTransfer / useSelfBatchTransfer", () =
 
   test("sdk_js: transferWithCommitmentAddress がゼロのとき assert が失敗", async () => {
     setSdkConfigAddressZero();
-    const { publicClient, walletClient } = stubClientsSelfTransferSuccess();
-    wagmiState.publicClient = publicClient;
+    const { publicClient: pc, walletClient } = stubClientsSelfTransferSuccess();
+    wagmiState.publicClient = stubPublicClient({
+      simulateContract: pc.simulateContract,
+      getCode: async () => "0x",
+    });
     wagmiState.walletClient = walletClient;
     wagmiState.address = ADDR as Hex;
 
@@ -60,7 +64,7 @@ describe("useSelfTransfer / useSelfUnifiedTransfer / useSelfBatchTransfer", () =
     });
     await waitFor(() => expect(result.current.isError).toBe(true));
     expect(result.current.error?.message).toMatch(
-      /not configured \(zero address\)/,
+      /not deployed at/,
     );
   });
 
@@ -84,15 +88,15 @@ describe("useSelfTransfer / useSelfUnifiedTransfer / useSelfBatchTransfer", () =
     expect(result.current.error?.message).toMatch(/RPC: eth_call failed/);
   });
 
-  test("sdk_js: 未対応チェーンでは Unsupported chain", async () => {
+  test("PublicClient と WalletClient の chain.id が異なれば chain mismatch", async () => {
     const { publicClient, walletClient } = stubClientsSelfTransferSuccess();
     wagmiState.publicClient = {
       ...publicClient,
-      chain: { id: 999_999, name: "Unknown" },
+      chain: mainnet,
     } as typeof publicClient;
     wagmiState.walletClient = {
       ...walletClient,
-      chain: { id: 999_999, name: "Unknown" },
+      chain: { id: 137, name: "Polygon" },
     } as typeof walletClient;
     wagmiState.address = ADDR as Hex;
 
@@ -107,7 +111,7 @@ describe("useSelfTransfer / useSelfUnifiedTransfer / useSelfBatchTransfer", () =
       commitment: COMMIT,
     });
     await waitFor(() => expect(result.current.isError).toBe(true));
-    expect(result.current.error?.message).toMatch(/Unsupported chain/);
+    expect(result.current.error?.message).toMatch(/chain mismatch/);
   });
 
   test("成功時は write の戻り tx ハッシュが data になる", async () => {

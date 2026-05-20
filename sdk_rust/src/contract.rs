@@ -54,6 +54,7 @@ sol! {
         CommittedTransferDetail[] details;
         uint256 validAfter;
         uint256 validBefore;
+        bytes32 batchCommitment;
     }
 
     /// EIP-712 型 `CancelAuthorization`。
@@ -105,6 +106,7 @@ sol! {
             CommittedTransferDetail[] details,
             uint256 validAfter,
             uint256 validBefore,
+            bytes32 batchCommitment,
             bytes signature
         ) external;
 

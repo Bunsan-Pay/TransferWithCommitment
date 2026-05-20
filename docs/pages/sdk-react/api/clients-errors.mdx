@@ -1,0 +1,30 @@
+---
+title: narrowWriteClients とよくある失敗
+description: ミューテーション実行時の前提とエラーメッセージの意味。
+---
+
+# `narrowWriteClients` とよくある失敗
+
+送金・署名のミューテーションは、**実行直前**に次を要求します。
+
+1. **`usePublicClient()` が `undefined` でない**
+2. **`useWalletClient().data` が `undefined` でない**
+3. **`useConnection().address` が `undefined` でない**
+
+いずれかが欠けると、`narrowWriteClients` が **即座に Error** を投げ、`mutateAsync` は reject します。
+
+| メッセージ | 原因 |
+| --- | --- |
+| `TWC: public client is not available` | wagmi の `publicClient` が未設定（チェーン設定・Provider の問題） |
+| `TWC: wallet client is not available` | `useWalletClient` がまだ解決していない |
+| `TWC: connect a wallet to send or sign` | ウォレット未接続で `address` が無い |
+
+## 対処のヒント
+
+- **Connect ボタン**を先に表示し、接続完了までミューテーションを無効化する。
+- **SSR** では `window.ethereum` が無いことがある。クライアント限定でフックをマウントする。
+- **チェーン切替**直後は `publicClient` が更新されるまで再レンダリングが発生する — 連打で失敗する場合は `isPending` でガード。
+
+## 検証系クエリのメッセージ
+
+`useVerifyTransfer` / `useTransferWithCommitmentSentLogs` は **`publicClient` 必須**。同上の `TWC: public client...` が出ます。`txHash` が未設定のときは **クエリ自体が `enabled: false`** になるため、手動で `refetch` しない限り queryFn は動きません。

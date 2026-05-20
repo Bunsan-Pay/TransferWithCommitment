@@ -1,0 +1,149 @@
+---
+title: Getting Started — Rust SDK
+description: 依存・Provider・デプロイ確認・送金（Self-Call / SignatureTransfer）・verify までを短く。
+---
+
+# Getting Started
+
+## 1. 依存と import のルール
+
+`Cargo.toml` の最小例（[Tutorial: Self-Call](/sdk-rust/guides/tutorial-self-call) と同じ枠です）。
+
+```toml
+[dependencies]
+eth-twc-sdk = "…"  # または { path = "../sdk_rust" } 等
+alloy = { version = "1.8", features = ["provider-http", "signer-local", "contract", "sol-types", "rpc-types-eth", "network", "rpc"] }
+tokio = { version = "1", features = ["macros", "rt-multi-thread"] }
+```
+
+API の全体像（モジュールと再エクスポート）は [クレートルート](/sdk-rust/api/crate-root) を参照。送金・署名・検証の典型的な `use` は次のように分割します（パス名の詳しい対応はチュートリアルを参照してください）。
+
+```rust
+use eth_twc_sdk::send_transaction::self_transfer;
+use eth_twc_sdk::types::SelfSingleTransferArgs;
+use eth_twc_sdk::utils;
+use eth_twc_sdk::verify;
+```
+
+## 2. Provider（読み取り vs ウォレット付き）
+
+**HTTP の読み取り専用** — レシート取得や `verify` にはこれで足りることが多いです。
+
+```rust
+use alloy::providers::ProviderBuilder;
+
+let provider = ProviderBuilder::new()
+    .connect_http("https://…".parse().expect("rpc url"));
+```
+
+**Self-Call の `transfer` 送信** — 内部は `.from(from).send()` まで行うため、**送金者の鍵に紐づく** `Provider` が必要です。`EthereumWallet` + `connect_http` の最小形です（ローカル Anvil 想定の例 — RPC URL・鍵は環境に合わせて置き換えてください）。
+
+```rust
+use alloy::network::EthereumWallet;
+use alloy::providers::ProviderBuilder;
+use alloy::signers::local::PrivateKeySigner;
+
+let pk: PrivateKeySigner = "0x…".parse().expect("送金者の秘密鍵");
+let from = pk.address();
+let provider = ProviderBuilder::new()
+    .wallet(EthereumWallet::new(pk))
+    .connect_http("https://…".parse().expect("rpc url"));
+```
+
+## 3. TWC デプロイの確認
+
+接続先で **canonical `transferWithCommitment_address` にコードがある**ことを、次のヘルパで確認できます（内部では `get_chain_id` と `get_code_at` を使います）。
+
+```rust
+// 既に async 文脈で `provider: &P` があるとする
+use eth_twc_sdk::utils;
+utils::assert_provider_supported_chain(&provider).await?;
+```
+
+数値の **例示チェーン ID** だけ知りたい場合は [utils の例示リスト](/sdk-rust/api/utils#example-chain-ids) を参照。**これは allowlist ではありません**。
+
+## 4. 最初の送金の骨格（Self-Call と SignatureTransfer）
+
+トークンが TWC へ **allowance 済み**で、上記 **デプロイ確認**を満たす前提の概形です。`commitment` の導出は [Commitment（Rust）](/sdk-rust/guides/commitment) および各チュートリアルに従ってください。SignatureTransfer では送金者用の読み取り＋署名用プロバイダと、Executor 用のウォレット付きプロバイダを分けます（詳細はチュートリアル）。
+
+:::code-group
+
+```rust [Self-Call]
+use alloy::primitives::B256;
+use eth_twc_sdk::send_transaction::self_transfer;
+use eth_twc_sdk::types::SelfSingleTransferArgs;
+
+let args = SelfSingleTransferArgs {
+    token,
+    to,
+    value,
+    commitment: B256::ZERO, // 本番では自前導出
+};
+
+let tx_hash = self_transfer::transfer(&provider, from, args).await?;
+```
+
+```rust [SignatureTransfer（署名 → Executor 送信）]
+use alloy::primitives::B256;
+use eth_twc_sdk::send_transaction::signature_transfer;
+use eth_twc_sdk::sign;
+use eth_twc_sdk::types::SingleTransferArgs;
+
+let signed = sign::single_transfer(
+    &read_provider,
+    &sender,
+    SingleTransferArgs {
+        from: sender.address(),
+        to,
+        token,
+        executor: executor.address(),
+        value,
+        commitment: B256::ZERO, // 本番では自前導出
+        valid_after: None,
+        valid_before: None,
+    },
+)
+.await?;
+
+let tx_hash =
+    signature_transfer::single_transfer(&executor_provider, executor.address(), signed).await?;
+```
+
+:::
+
+手順付きの完全版は Self-Call: [Tutorial: Self-Call](/sdk-rust/guides/tutorial-self-call)、SignatureTransfer: [Tutorial: EIP-712 + Executor](/sdk-rust/guides/tutorial-signature-executor)。エラーの切り分けは [errors ガイド](/sdk-rust/guides/errors) を参照。
+
+**ゼロアドレス**のビルド（`integration-test` で env 未設定など）では `SdkError::ContractNotConfigured`、**未デプロイ**では `ContractNotDeployed` になり得ます。詳細は [内部 API リファレンス](/contributing/sdk-rust-internals) および [Rust SDK リリース](/contributing/sdk-rust-release)。
+
+## 5. レシート検証（verify）
+
+`transfer` / `single_transfer` が返した **`tx_hash`** がマイニングされたあと、**読み取り用 `Provider`** でレシートと期待パラメータを照合できます。**Self-Call でも SignatureTransfer でも同じ `verify::verify`** です。
+
+```rust
+use eth_twc_sdk::verify::{self, VerifyArgs};
+
+verify::verify(
+    &provider,
+    tx_hash,
+    &VerifyArgs {
+        from,
+        token,
+        to,
+        value,
+        commitment,
+    },
+)
+.await?;
+```
+
+API の詳細は [verify](/sdk-rust/api/verify)、手順の詳細は [Tutorial: レシート検証（verify）](/sdk-rust/guides/tutorial-verify) を参照してください。
+
+## 6. 型だけ欲しいとき
+
+```rust
+use eth_twc_sdk::types::SelfSingleTransferArgs;
+use eth_twc_sdk::types::SignedTransferWithCommit;
+// その他の args / 署名バンドルは [types API](/sdk-rust/api/types) を参照
+```
+
+フィールド定義の一覧は [types](/sdk-rust/api/types) を参照してください。委任署名バンドルから送金する流れは [sign](/sdk-rust/api/sign) → [signature_transfer](/sdk-rust/api/signature-transfer) の順で読めます。

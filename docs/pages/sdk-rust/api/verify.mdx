@@ -1,0 +1,26 @@
+---
+title: verify — Rust SDK
+description: レシート取得とイベント照合。
+---
+
+# `eth_twc_sdk::verify`
+
+## `VerifyArgs`
+
+| フィールド | 意味 |
+| --- | --- |
+| `from` | ログの送金元 |
+| `token` | ERC-20 |
+| `to` | 受取人 |
+| `value` | 数量（`U256`） |
+| `commitment` | `B256` |
+
+## `get_transfer_with_commitment_sent_event_logs(provider, hash) -> Result<Vec<TransferWithCommitmentSent>, SdkError>`
+
+- コントラクト未設定 / TWC 未デプロイ（`get_code` 空）/ レシートなし → それぞれ対応する `SdkError`
+- ログを総当たりし、**アドレスが TWC かつ `decode_log` 成功したもの**を集める
+- **0 件なら空ベクタ**（JS SDK の `getTransferWithCommitmentSentEventLogs` と同様、エラーにしない）
+
+## `verify(provider, hash, args) -> Result<(), SdkError>`
+
+同じレシートを走査し、**一件でも `VerifyArgs` とすべて一致するイベントがあれば `Ok(())`**。なければ **`SdkError::EventNotFound`**。

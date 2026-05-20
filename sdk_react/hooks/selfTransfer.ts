@@ -1,20 +1,20 @@
 "use client";
 
 import { useMutation, type UseMutationOptions } from "@tanstack/react-query";
-import * as selfTransfer from "eth-twc-sdk-js/sendTransaction/selfTransfer";
-import type {
-  BatchTransferWithCommitArgs,
-  SingleTransferArgs,
-  UniCommitTransfersArgs,
-} from "eth-twc-sdk-js/types/args/selfTransfer";
 import type { Hex } from "viem";
+import { sendTx as sendSelfBatch } from "eth-twc-sdk-js/selfTransfer/batch";
+import { sendTx as sendSelfSingle } from "eth-twc-sdk-js/selfTransfer/single";
+import { sendTx as sendSelfUnified } from "eth-twc-sdk-js/selfTransfer/unified";
+import type { SelfTransferBatchArgs } from "eth-twc-sdk-js/selfTransfer/batch";
+import type { SelfTransferSingleArgs } from "eth-twc-sdk-js/selfTransfer/single";
+import type { SelfTransferUnifiedArgs } from "eth-twc-sdk-js/selfTransfer/unified";
 import { useConnection, usePublicClient, useWalletClient } from "wagmi";
 
 import { narrowWriteClients } from "./clients.ts";
 
 export function useSelfTransfer(
   options?: Omit<
-    UseMutationOptions<Hex, Error, SingleTransferArgs>,
+    UseMutationOptions<Hex, Error, SelfTransferSingleArgs>,
     "mutationFn"
   >,
 ) {
@@ -24,20 +24,21 @@ export function useSelfTransfer(
 
   return useMutation({
     ...options,
-    mutationFn: async (args: SingleTransferArgs) => {
+    mutationFn: async (args: SelfTransferSingleArgs) => {
       const [pc, wc, addr] = narrowWriteClients(
         publicClient,
         walletClient,
         address,
       );
-      return selfTransfer.transfer(pc, wc, addr, args);
+      return sendSelfSingle(pc, wc, addr, args);
     },
   });
 }
 
+/** UniCommitTransfers 経路と同じ `transfer([details], commitment)` */
 export function useSelfUnifiedTransfer(
   options?: Omit<
-    UseMutationOptions<Hex, Error, UniCommitTransfersArgs>,
+    UseMutationOptions<Hex, Error, SelfTransferUnifiedArgs>,
     "mutationFn"
   >,
 ) {
@@ -47,20 +48,20 @@ export function useSelfUnifiedTransfer(
 
   return useMutation({
     ...options,
-    mutationFn: async (args: UniCommitTransfersArgs) => {
+    mutationFn: async (args: SelfTransferUnifiedArgs) => {
       const [pc, wc, addr] = narrowWriteClients(
         publicClient,
         walletClient,
         address,
       );
-      return selfTransfer.unifiedTransfer(pc, wc, addr, args);
+      return sendSelfUnified(pc, wc, addr, args);
     },
   });
 }
 
 export function useSelfBatchTransfer(
   options?: Omit<
-    UseMutationOptions<Hex, Error, BatchTransferWithCommitArgs>,
+    UseMutationOptions<Hex, Error, SelfTransferBatchArgs>,
     "mutationFn"
   >,
 ) {
@@ -70,13 +71,13 @@ export function useSelfBatchTransfer(
 
   return useMutation({
     ...options,
-    mutationFn: async (args: BatchTransferWithCommitArgs) => {
+    mutationFn: async (args: SelfTransferBatchArgs) => {
       const [pc, wc, addr] = narrowWriteClients(
         publicClient,
         walletClient,
         address,
       );
-      return selfTransfer.batchTransfer(pc, wc, addr, args);
+      return sendSelfBatch(pc, wc, addr, args);
     },
   });
 }

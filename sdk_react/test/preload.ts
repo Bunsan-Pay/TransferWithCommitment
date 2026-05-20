@@ -15,19 +15,40 @@ const sdkJsConfigPath = `${sdkJsRoot}config.ts`;
 mock.module(sdkJsConfigPath, () => buildMockSdkConfigModule());
 
 const verifyModule = await import("../../sdk_js/verify.ts");
-const signModule = await import("../../sdk_js/sign.ts");
-const selfTransferModule = await import("../../sdk_js/sendTransaction/selfTransfer.ts");
-const signatureTransferModule = await import(
-  "../../sdk_js/sendTransaction/signatureTransfer.ts"
+
+const sigSingleSrc = await import(
+  "../../sdk_js/signatureTransfer/single/index.ts"
+);
+const sigBatchSrc = await import(
+  "../../sdk_js/signatureTransfer/batch/index.ts"
+);
+const sigUnifiedSrc = await import(
+  "../../sdk_js/signatureTransfer/unified/index.ts"
+);
+const sigCancelSrc = await import(
+  "../../sdk_js/signatureTransfer/cancelAuthorization/index.ts"
+);
+
+const selfSingleSrc = await import("../../sdk_js/selfTransfer/single/index.ts");
+const selfBatchSrc = await import("../../sdk_js/selfTransfer/batch/index.ts");
+const selfUnifiedSrc = await import(
+  "../../sdk_js/selfTransfer/unified/index.ts"
 );
 
 mock.module("eth-twc-sdk-js/verify", () => verifyModule);
-mock.module("eth-twc-sdk-js/sign", () => signModule);
-mock.module("eth-twc-sdk-js/sendTransaction/selfTransfer", () => selfTransferModule);
+
+mock.module("eth-twc-sdk-js/signatureTransfer/single", () => sigSingleSrc);
+mock.module("eth-twc-sdk-js/signatureTransfer/batch", () => sigBatchSrc);
+mock.module("eth-twc-sdk-js/signatureTransfer/unified", () => sigUnifiedSrc);
 mock.module(
-  "eth-twc-sdk-js/sendTransaction/signatureTransfer",
-  () => signatureTransferModule,
+  "eth-twc-sdk-js/signatureTransfer/cancelAuthorization",
+  () => sigCancelSrc,
 );
+
+mock.module("eth-twc-sdk-js/selfTransfer/single", () => selfSingleSrc);
+mock.module("eth-twc-sdk-js/selfTransfer/batch", () => selfBatchSrc);
+mock.module("eth-twc-sdk-js/selfTransfer/unified", () => selfUnifiedSrc);
+
 mock.module("eth-twc-sdk-js/config", () => buildMockSdkConfigModule());
 
 const window = new Window({ url: "http://localhost/" });

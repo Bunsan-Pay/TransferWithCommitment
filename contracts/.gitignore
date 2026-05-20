@@ -1,6 +1,9 @@
 # Compiler files
 cache/
 out/
+# Slither / crytic-compile 用（docker 内で volume と被らない out/cache）
+cache-slither/
+out-slither/
 
 # Ignores development broadcast logs
 !/broadcast

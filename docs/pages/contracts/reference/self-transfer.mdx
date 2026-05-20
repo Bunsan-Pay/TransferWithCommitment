@@ -1,0 +1,162 @@
+---
+title: "Reference: SelfTransfer"
+description: SelfTransfer.sol の全関数リファレンス。
+---
+
+# SelfTransfer（`SelfTransfer.sol`）
+
+`msg.sender` 自身が送金者となる Self-Call 経路の実装コントラクト。オフチェーン EIP-712 署名は不要であり、トランザクションの署名のみで送金を実行する。
+
+**継承**: `ISelfTransfer`, `State`, `ReentrancyGuard`
+
+---
+
+## API Reference
+
+### `transfer`（単一送金）
+
+1 件の送金と 1 つの commitment を紐づけて実行する。
+
+```solidity
+function transfer(
+    address token,
+    address to,
+    uint256 value,
+    bytes32 commitment
+) external nonReentrant
+```
+
+| 引数 | 型 | 説明 |
+| --- | --- | --- |
+| `token` | `address` | ERC-20 トークンのコントラクトアドレス |
+| `to` | `address` | 受取人のアドレス |
+| `value` | `uint256` | 送金額（トークンの最小単位） |
+| `commitment` | `bytes32` | この送金に紐づける一意なコミットメント |
+
+**Modifiers**: `nonReentrant`
+
+- **前提条件**:
+  - 再入呼び出しでないこと（`nonReentrant`）
+  - `!commitmentState(msg.sender, commitment)`（commitment が未使用）
+  - `IERC20(token).allowance(msg.sender, address(this)) >= value`
+- **事後条件**:
+  - `(msg.sender, commitment)` が使用済みとなる
+  - `msg.sender` から `to` へ `value` のトークンが移転される
+  - `TransferWithCommitmentSent(msg.sender, to, token, value, commitment)` が発行される
+- **アクション**: `_transferWithGuard(token, to, value, commitment)` を呼び出す
+
+---
+
+### `transfer`（Uni: 共有 commitment で複数送金）
+
+複数の送金明細を 1 つの共有 commitment と紐づけて一括実行する。
+
+```solidity
+function transfer(
+    TransferDetail[] calldata details,
+    bytes32 commitment
+) external nonReentrant replayGuard(msg.sender, commitment)
+```
+
+| 引数 | 型 | 説明 |
+| --- | --- | --- |
+| `details` | `TransferDetail[]` | 送金明細の配列 |
+| `commitment` | `bytes32` | 全明細で共有される一意なコミットメント |
+
+**Modifiers**: `nonReentrant`, `replayGuard(msg.sender, commitment)`
+
+- **前提条件**:
+  - 再入呼び出しでないこと（`nonReentrant`）
+  - `!commitmentState(msg.sender, commitment)`（`replayGuard` が検証）
+  - `details.length > 0`（空配列は revert）
+  - 各 `details[i]` について `IERC20(details[i].token).allowance(msg.sender, address(this)) >= details[i].value`
+- **事後条件**:
+  - `(msg.sender, commitment)` が使用済みとなる（`replayGuard` により関数本体の実行前にマークされる）
+  - 各明細について `msg.sender` から `details[i].to` へ `details[i].value` のトークンが移転される
+  - 各明細について `TransferWithCommitmentSent` が同一の `commitment` 値で発行される
+- **アクション**: `replayGuard` で commitment を消費した後、`details` を先頭から順に `_transfer(details[i].token, details[i].to, details[i].value, commitment)` で処理する
+
+---
+
+### `transfer`（バッチ: 行ごと commitment で複数送金）
+
+各明細が固有の commitment を持つ複数の送金を実行する。Self-Call 経路にはバッチ全体を束ねる `batchCommitment` は存在しない。
+
+```solidity
+function transfer(
+    CommittedTransferDetail[] calldata details
+) external nonReentrant
+```
+
+| 引数 | 型 | 説明 |
+| --- | --- | --- |
+| `details` | `CommittedTransferDetail[]` | 送金明細の配列（各要素に commitment を含む） |
+
+**Modifiers**: `nonReentrant`
+
+- **前提条件**:
+  - 再入呼び出しでないこと（`nonReentrant`）
+  - `details.length > 0`（空配列は revert）
+  - 各 `details[i]` について:
+    - `!commitmentState(msg.sender, details[i].commitment)`
+    - `IERC20(details[i].token).allowance(msg.sender, address(this)) >= details[i].value`
+- **事後条件**:
+  - 各 `(msg.sender, details[i].commitment)` が使用済みとなる
+  - 各明細について送金と `TransferWithCommitmentSent` イベント発行が行われる
+- **アクション**: 各要素について先頭から順に `_transferWithGuard(details[i].token, details[i].to, details[i].value, details[i].commitment)` を呼び出す
+
+---
+
+## Internal Impl
+
+### `_transferWithGuard`
+
+`replayGuard` を適用したうえで `_transfer` を呼び出す内部関数。単一送金の `transfer` およびバッチ送金の各明細処理で使用される。
+
+```solidity
+function _transferWithGuard(
+    address token,
+    address to,
+    uint256 value,
+    bytes32 commitment
+) internal replayGuard(msg.sender, commitment)
+```
+
+| 引数 | 型 | 説明 |
+| --- | --- | --- |
+| `token` | `address` | ERC-20 トークンのコントラクトアドレス |
+| `to` | `address` | 受取人のアドレス |
+| `value` | `uint256` | 送金額 |
+| `commitment` | `bytes32` | コミットメント |
+
+**Modifiers**: `replayGuard(msg.sender, commitment)`
+
+- **前提条件**: `!commitmentState(msg.sender, commitment)`（`replayGuard` が検証）
+- **事後条件**: `(msg.sender, commitment)` が使用済みとなり、`_transfer` の効果が適用される
+- **アクション**: `_transfer(token, to, value, commitment)` を呼び出す
+
+---
+
+### `_transfer`
+
+allowance の検証、ERC-20 トークンの移転、イベント発行を行う最終的な送金処理。
+
+```solidity
+function _transfer(
+    address token,
+    address to,
+    uint256 value,
+    bytes32 commitment
+) private
+```
+
+| 引数 | 型 | 説明 |
+| --- | --- | --- |
+| `token` | `address` | ERC-20 トークンのコントラクトアドレス |
+| `to` | `address` | 受取人のアドレス |
+| `value` | `uint256` | 送金額 |
+| `commitment` | `bytes32` | コミットメント |
+
+- **前提条件**: `IERC20(token).allowance(msg.sender, address(this)) >= value`（不足時は `AllowanceNotEnough(token, msg.sender, value)` で revert）
+- **事後条件**: `msg.sender` から `to` へ `value` のトークンが移転され、`TransferWithCommitmentSent(msg.sender, to, token, value, commitment)` が発行される
+- **アクション**: `IERC20(token).safeTransferFrom(msg.sender, to, value)` を実行し、`TransferWithCommitmentSent` を emit する

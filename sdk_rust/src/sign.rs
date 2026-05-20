@@ -22,7 +22,7 @@ use crate::types::signed_data::{
     SignedBatchTransferWithCommit, SignedCancelAuthorization, SignedTransferWithCommit,
     SignedUniCommitTransfers,
 };
-use crate::utils::assert_provider_supported_chain;
+use crate::utils::{assert_onchain_eip712_domain_matches_config, assert_transfer_contract_deployed};
 
 /// EIP-712 の `from` が実際に署名するキーの [`Signer::address`] と一致することを保証する。
 ///
@@ -82,16 +82,19 @@ pub fn domain_for_typed_data_sign(
 
 /// コントラクトの `eip712Domain()` を読み、[`domain_for_typed_data_sign`] で正規化したドメインを返す。
 async fn fetch_eip712_domain<P: Provider>(provider: &P) -> Result<Eip712Domain, SdkError> {
+    let chain_id = provider.get_chain_id().await?;
     let c = TransferWithCommitment::new(config::transfer_with_commitment_address(), provider);
     let r = c.eip712Domain().call().await?;
     let _ = r.fields;
-    Ok(domain_for_typed_data_sign(
+    let domain = domain_for_typed_data_sign(
         r.name,
         r.version,
         r.chainId,
         r.verifyingContract,
         r.salt,
-    ))
+    );
+    assert_onchain_eip712_domain_matches_config(&domain, chain_id)?;
+    Ok(domain)
 }
 
 fn unwrap_valid_time_window(
@@ -140,7 +143,7 @@ where
         unwrap_valid_time_window(args.valid_after, args.valid_before)?;
     ensure_signer_is_message_from(signer, args.from)?;
     assert_transfer_contract_configured()?;
-    assert_provider_supported_chain(provider).await?;
+    assert_transfer_contract_deployed(provider).await?;
     let domain = fetch_eip712_domain(provider).await?;
     let msg = TransferWithCommit {
         from: args.from,
@@ -191,7 +194,7 @@ where
         unwrap_valid_time_window(args.valid_after, args.valid_before)?;
     ensure_signer_is_message_from(signer, args.from)?;
     assert_transfer_contract_configured()?;
-    assert_provider_supported_chain(provider).await?;
+    assert_transfer_contract_deployed(provider).await?;
     let domain = fetch_eip712_domain(provider).await?;
     let details: Vec<SolTransferDetail> = args
         .details
@@ -247,7 +250,7 @@ where
         unwrap_valid_time_window(args.valid_after, args.valid_before)?;
     ensure_signer_is_message_from(signer, args.from)?;
     assert_transfer_contract_configured()?;
-    assert_provider_supported_chain(provider).await?;
+    assert_transfer_contract_deployed(provider).await?;
     let domain = fetch_eip712_domain(provider).await?;
     let details: Vec<crate::contract::CommittedTransferDetail> = args
         .details
@@ -265,6 +268,7 @@ where
         details,
         validAfter: valid_after,
         validBefore: valid_before,
+        batchCommitment: args.batch_commitment,
     };
     let hash = msg.eip712_signing_hash(&domain);
     let sig = signer.sign_hash(&hash).await?;
@@ -273,6 +277,7 @@ where
         domain,
         from: args.from,
         details: args.details,
+        batch_commitment: args.batch_commitment,
         valid_after,
         valid_before,
         signature,
@@ -305,7 +310,7 @@ where
 {
     ensure_signer_is_authorizer(signer, args.authorizer)?;
     assert_transfer_contract_configured()?;
-    assert_provider_supported_chain(provider).await?;
+    assert_transfer_contract_deployed(provider).await?;
     let domain = fetch_eip712_domain(provider).await?;
     let msg = CancelAuthorization {
         authorizer: args.authorizer,
@@ -355,7 +360,7 @@ mod tests {
 
     #[tokio::test]
     #[cfg(not(feature = "test-config"))]
-    async fn single_transfer_fails_before_rpc_when_contract_not_configured() {
+    async fn single_transfer_fails_when_provider_unreachable() {
         use alloy::providers::ProviderBuilder;
         use alloy::primitives::B256;
         use crate::error::SdkError;
@@ -375,7 +380,7 @@ mod tests {
             valid_before: None,
         };
         let r = super::single_transfer(&provider, &signer, args).await;
-        assert!(matches!(r, Err(SdkError::ContractNotConfigured)));
+        assert!(matches!(r, Err(SdkError::Alloy(_))));
     }
 
     #[tokio::test]
@@ -465,6 +470,7 @@ mod tests {
             from: a,
             executor: a,
             details: vec![],
+            batch_commitment: B256::ZERO,
             valid_after: None,
             valid_before: None,
         };
@@ -522,6 +528,7 @@ mod tests {
             from: wrong_from,
             executor: signer.address(),
             details: vec![row],
+            batch_commitment: B256::repeat_byte(0xdd),
             valid_after: None,
             valid_before: None,
         };

@@ -1,26 +1,33 @@
 "use client";
 
 import { useMutation, type UseMutationOptions } from "@tanstack/react-query";
-import * as sign from "eth-twc-sdk-js/sign";
+import { sign as signBatch } from "eth-twc-sdk-js/signatureTransfer/batch";
+import { sign as signCancel } from "eth-twc-sdk-js/signatureTransfer/cancelAuthorization";
+import { sign as signSingle } from "eth-twc-sdk-js/signatureTransfer/single";
+import { sign as signUnified } from "eth-twc-sdk-js/signatureTransfer/unified";
 import type {
-  BatchTransferWithCommitArgs,
+  SignedBatchTransfer,
+  SignatureTransferBatchArgs,
+} from "eth-twc-sdk-js/signatureTransfer/batch";
+import type {
   CancelAuthorizationArgs,
-  SingleTransferArgs,
-  UniCommitTransfersArgs,
-} from "eth-twc-sdk-js/types/args/signatureTransfer";
-import type {
-  SignedBatchTransferWithCommit,
   SignedCancelAuthorization,
-  SignedTransferWithCommit,
-  SignedUniCommitTransfers,
-} from "eth-twc-sdk-js/types/signedData";
+} from "eth-twc-sdk-js/signatureTransfer/cancelAuthorization";
+import type {
+  SignatureTransferSingleArgs,
+  SignedSingleTransfer,
+} from "eth-twc-sdk-js/signatureTransfer/single";
+import type {
+  SignatureTransferUnifiedArgs,
+  SignedUnifiedTransfer,
+} from "eth-twc-sdk-js/signatureTransfer/unified";
 import { useConnection, usePublicClient, useWalletClient } from "wagmi";
 
 import { narrowWriteClients } from "./clients.ts";
 
 export function useSignSingleTransfer(
   options?: Omit<
-    UseMutationOptions<SignedTransferWithCommit, Error, SingleTransferArgs>,
+    UseMutationOptions<SignedSingleTransfer, Error, SignatureTransferSingleArgs>,
     "mutationFn"
   >,
 ) {
@@ -30,46 +37,24 @@ export function useSignSingleTransfer(
 
   return useMutation({
     ...options,
-    mutationFn: async (args: SingleTransferArgs) => {
+    mutationFn: async (args: SignatureTransferSingleArgs) => {
       const [pc, wc, addr] = narrowWriteClients(
         publicClient,
         walletClient,
         address,
       );
-      return sign.singleTransfer(pc, wc, addr, args);
+      return signSingle(pc, wc, addr, args);
     },
   });
 }
 
-export function useSignUniCommitTransfers(
-  options?: Omit<
-    UseMutationOptions<SignedUniCommitTransfers, Error, UniCommitTransfersArgs>,
-    "mutationFn"
-  >,
-) {
-  const publicClient = usePublicClient();
-  const { data: walletClient } = useWalletClient();
-  const { address } = useConnection();
-
-  return useMutation({
-    ...options,
-    mutationFn: async (args: UniCommitTransfersArgs) => {
-      const [pc, wc, addr] = narrowWriteClients(
-        publicClient,
-        walletClient,
-        address,
-      );
-      return sign.uniCommitTransfers(pc, wc, addr, args);
-    },
-  });
-}
-
-export function useSignBatchTransferWithCommit(
+/** UniCommitTransfers EIP-712（公開名 unified）を署名する */
+export function useSignUnifiedTransfer(
   options?: Omit<
     UseMutationOptions<
-      SignedBatchTransferWithCommit,
+      SignedUnifiedTransfer,
       Error,
-      BatchTransferWithCommitArgs
+      SignatureTransferUnifiedArgs
     >,
     "mutationFn"
   >,
@@ -80,16 +65,45 @@ export function useSignBatchTransferWithCommit(
 
   return useMutation({
     ...options,
-    mutationFn: async (args: BatchTransferWithCommitArgs) => {
+    mutationFn: async (args: SignatureTransferUnifiedArgs) => {
       const [pc, wc, addr] = narrowWriteClients(
         publicClient,
         walletClient,
         address,
       );
-      return sign.batchTransferWithCommit(pc, wc, addr, args);
+      return signUnified(pc, wc, addr, args);
     },
   });
 }
+
+/** 別名保持: 旧 hooks 利用者の移行パスとして */
+export const useSignUniCommitTransfers = useSignUnifiedTransfer;
+
+export function useSignBatchTransfer(
+  options?: Omit<
+    UseMutationOptions<SignedBatchTransfer, Error, SignatureTransferBatchArgs>,
+    "mutationFn"
+  >,
+) {
+  const publicClient = usePublicClient();
+  const { data: walletClient } = useWalletClient();
+  const { address } = useConnection();
+
+  return useMutation({
+    ...options,
+    mutationFn: async (args: SignatureTransferBatchArgs) => {
+      const [pc, wc, addr] = narrowWriteClients(
+        publicClient,
+        walletClient,
+        address,
+      );
+      return signBatch(pc, wc, addr, args);
+    },
+  });
+}
+
+/** 別名保持: 旧名前 `BatchTransferWithCommit` と対応 */
+export const useSignBatchTransferWithCommit = useSignBatchTransfer;
 
 export function useSignCancelAuthorization(
   options?: Omit<
@@ -113,7 +127,7 @@ export function useSignCancelAuthorization(
         walletClient,
         address,
       );
-      return sign.cancelAuthorization(pc, wc, addr, args);
+      return signCancel(pc, wc, addr, args);
     },
   });
 }

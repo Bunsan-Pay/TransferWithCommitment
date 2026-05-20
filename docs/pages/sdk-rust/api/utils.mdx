@@ -1,0 +1,40 @@
+---
+title: utils — Rust SDK
+description: デプロイ検証と EIP-712 domain 照合。
+---
+
+# `eth_twc_sdk::utils`
+
+## `chain_id_matches(domain_chain_id: U256, client_chain_id: u64) -> bool`
+
+`U256` と `u64` の数値等価チェック。
+
+## `assert_transfer_contract_deployed(provider: &P) -> Result<(), SdkError>`（async）
+
+接続先チェーンで **`transfer_with_commitment_address()` に対する `get_code` が空でない**ことを確認。空なら **`SdkError::ContractNotDeployed { address, chain_id }`**。
+
+## `assert_provider_supported_chain(provider: &P) -> Result<(), SdkError>`（async）
+
+`assert_transfer_contract_deployed` の**エイリアス**（旧名との互換）。チェーン allowlist は行いません。
+
+## `assert_onchain_eip712_domain_matches_config(...)`
+
+オンチェーン `eip712Domain()` の読み取り結果が、期待する TWC / チェーン / name / version と一致するか検証します。
+
+## `assert_signed_domain_matches_client_and_config(...) -> Result<(), SdkError>`
+
+引数: `client_chain_id`, `domain_chain_id`（`U256`）, `domain_verifying_contract`, `configured_contract`
+
+- chain id 不一致 → `DomainChainIdMismatch { domain, client }`
+- verifyingContract 不一致 → `DomainVerifyingContractMismatch { domain, configured }`
+
+## `assert_signed_domain_matches_provider_and_config(...) -> Result<(), SdkError>`
+
+[`assert_signed_domain_matches_client_and_config`](/sdk-rust/api/utils) に、**ビルドに埋め込まれた TWC コントラクト**を `configured_contract` として渡す薄ラッパです。
+
+**呼び出し例（送金前のデプロイ確認）**
+
+```rust
+// use eth_twc_sdk::utils;
+utils::assert_provider_supported_chain(&provider).await?;
+```

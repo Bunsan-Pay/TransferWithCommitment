@@ -1,0 +1,22 @@
+---
+title: FAQ — React SDK
+description: よくある質問。
+---
+
+# FAQ
+
+## Q. `useVerifyTransfer` の成功判定は何を見る？
+
+検証成功時の **`data` は `null`** です。通常は `isSuccess` と `isError` で判定してください。
+
+## Q. Server Component で import できる？
+
+フックは **`"use client"`** です。Server Component では import せず、クライアント子コンポーネントに閉じ込めてください。
+
+## Q. 署名者と Executor を別アドレスで同時に使えないのはなぜ？
+
+wagmi は **単一の接続アドレス**（`useConnection().address`）を前提にしています。EIP-712 の `from` は署名時の接続アドレスと一致する必要があり、Executor 送金は同じ接続を `WalletClient` に使います。**2 つのアカウントを同時に接続**する用途は、この薄いラッパの想定外です。別キーで署名・送信する場合は **カスタム `WalletClient` を渡す改造**か、素の [eth-twc-sdk-js](/sdk-js) を直接使ってください。
+
+## Q. `queryKey` をカスタムしたい
+
+`useVerifyTransfer` は **`queryKey` / `queryFn` をオプションから除外**しています。キー戦略を変えたい場合は **ラッパーフックを自作**し、内部で `verify` を直接呼ぶのが確実です。

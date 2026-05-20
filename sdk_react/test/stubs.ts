@@ -1,13 +1,14 @@
 import { mock } from "bun:test";
-import type {
-  SignedBatchTransferWithCommit,
-  SignedCancelAuthorization,
-  SignedTransferWithCommit,
-  SignedUniCommitTransfers,
-} from "eth-twc-sdk-js/types/signedData";
+import type { SignedBatchTransfer } from "eth-twc-sdk-js/signatureTransfer/batch";
+import type { SignedCancelAuthorization } from "eth-twc-sdk-js/signatureTransfer/cancelAuthorization";
+import type { SignedSingleTransfer } from "eth-twc-sdk-js/signatureTransfer/single";
+import type { SignedUnifiedTransfer } from "eth-twc-sdk-js/signatureTransfer/unified";
 import { UINT256_MAX } from "eth-twc-sdk-js/types/utils";
 import { mainnet } from "viem/chains";
-import type { Hex, PublicClient, WalletClient } from "viem";
+import type { Address, Hex, PublicClient, WalletClient } from "viem";
+
+const ZERO_ADDR =
+  "0x0000000000000000000000000000000000000000" as Address;
 
 import {
   ADDR,
@@ -20,13 +21,23 @@ import {
 
 const TX_HASH = ("0x" + "aa".repeat(32)) as Hex;
 
-/** supportedChains に含まれる PublicClient スタブ（chain は mainnet）。 */
+/** PublicClient スタブ（chain は mainnet、既定で TWC がデプロイ済み扱いの getCode）。 */
 export function stubPublicClient(
   overrides: Partial<PublicClient> = {},
 ): PublicClient {
+  const { getCode: overrideGetCode, ...rest } = overrides;
+  const defaultGetCode: PublicClient["getCode"] = async (args) => {
+    const a = args.address;
+    if (!a || a.toLowerCase() === ZERO_ADDR.toLowerCase()) {
+      return "0x";
+    }
+    return "0x6000";
+  };
+  const getCode = overrideGetCode ?? defaultGetCode;
   return {
     chain: mainnet,
-    ...overrides,
+    getCode,
+    ...rest,
   } as PublicClient;
 }
 
@@ -136,20 +147,20 @@ export function stubClientsGetEip712DomainRejects(): {
 
 function domainWithoutZeroSalt(
   d: ReturnType<typeof testDomain>,
-): SignedTransferWithCommit["domain"] {
+): SignedSingleTransfer["domain"] {
   if (
     d.salt !== undefined &&
     typeof d.salt === "string" &&
     d.salt.toLowerCase() === SALT_ZERO.toLowerCase()
   ) {
     const { salt: _s, ...rest } = d;
-    return rest as SignedTransferWithCommit["domain"];
+    return rest as SignedSingleTransfer["domain"];
   }
-  return d as SignedTransferWithCommit["domain"];
+  return d as SignedSingleTransfer["domain"];
 }
 
 /** Executor 送信: 署名済みバンドル + simulate / write 成功。 */
-export function minimalSignedSingleTransfer(): SignedTransferWithCommit {
+export function minimalSignedSingleTransfer(): SignedSingleTransfer {
   const raw = testDomain();
   return {
     domain: domainWithoutZeroSalt(raw),
@@ -164,7 +175,7 @@ export function minimalSignedSingleTransfer(): SignedTransferWithCommit {
   };
 }
 
-export function minimalSignedUni(): SignedUniCommitTransfers {
+export function minimalSignedUni(): SignedUnifiedTransfer {
   const raw = testDomain();
   return {
     domain: domainWithoutZeroSalt(raw),
@@ -177,7 +188,11 @@ export function minimalSignedUni(): SignedUniCommitTransfers {
   };
 }
 
-export function minimalSignedBatch(): SignedBatchTransferWithCommit {
+/** バッチ EIP-712 の `batchCommitment`（明細行の `commitment` と別ワードにする）。 */
+const BATCH_COMMIT = ("0x" +
+  "bb".repeat(32)) as Hex;
+
+export function minimalSignedBatch(): SignedBatchTransfer {
   const raw = testDomain();
   return {
     domain: domainWithoutZeroSalt(raw),
@@ -187,6 +202,7 @@ export function minimalSignedBatch(): SignedBatchTransferWithCommit {
     ],
     validAfter: 0n,
     validBefore: UINT256_MAX,
+    batchCommitment: BATCH_COMMIT,
     signature: ("0x" + "cc".repeat(65)) as Hex,
   };
 }

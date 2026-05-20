@@ -1,0 +1,92 @@
+---
+title: "Reference: 共有型定義"
+description: Structs.sol / Events.sol で宣言される struct・event・error のリファレンス。
+---
+
+# 共有型定義（Structs / Events）
+
+`Structs.sol` と `Events.sol` はコントラクト階層全体で共有される型・イベント・エラーを宣言するファイルであり、コントラクト本体を持たない。
+
+## API Reference
+
+### struct `TransferDetail`
+
+送金先・トークン・金額の組を表す明細構造体。commitment を含まないため、Uni 経路（複数明細で 1 つの commitment を共有する送金）で使用される。
+
+```solidity
+struct TransferDetail {
+    address to;
+    address token;
+    uint256 value;
+}
+```
+
+| フィールド | 型 | 説明 |
+| --- | --- | --- |
+| `to` | `address` | 受取人のアドレス |
+| `token` | `address` | ERC-20 トークンのコントラクトアドレス |
+| `value` | `uint256` | 送金額（トークンの最小単位） |
+
+---
+
+### struct `CommittedTransferDetail`
+
+送金先・トークン・金額に加え、行ごとの commitment を持つ明細構造体。バッチ経路（明細ごとに固有の commitment を紐づける送金）で使用される。
+
+```solidity
+struct CommittedTransferDetail {
+    address to;
+    address token;
+    uint256 value;
+    bytes32 commitment;
+}
+```
+
+| フィールド | 型 | 説明 |
+| --- | --- | --- |
+| `to` | `address` | 受取人のアドレス |
+| `token` | `address` | ERC-20 トークンのコントラクトアドレス |
+| `value` | `uint256` | 送金額（トークンの最小単位） |
+| `commitment` | `bytes32` | この明細に紐づく一意なコミットメント |
+
+---
+
+### event `TransferWithCommitmentSent`
+
+送金が正常に完了するたびに発行されるイベント。送金者・受取人・トークン・金額・commitment をオンチェーンログに記録する。オフチェーン検証の主な対象となる。
+
+```solidity
+event TransferWithCommitmentSent(
+    address indexed from,
+    address indexed to,
+    address indexed token,
+    uint256 value,
+    bytes32 commitment
+);
+```
+
+| パラメータ | 型 | indexed | 説明 |
+| --- | --- | --- | --- |
+| `from` | `address` | yes | 送金者のアドレス |
+| `to` | `address` | yes | 受取人のアドレス |
+| `token` | `address` | yes | ERC-20 トークンのコントラクトアドレス |
+| `value` | `uint256` | no | 送金額 |
+| `commitment` | `bytes32` | no | この送金に紐づくコミットメント |
+
+---
+
+### error `AllowanceNotEnough`
+
+送金者が本コントラクトに対して十分な ERC-20 allowance を設定していない場合に発生するカスタムエラー。
+
+```solidity
+error AllowanceNotEnough(address token, address from, uint256 value);
+```
+
+| パラメータ | 型 | 説明 |
+| --- | --- | --- |
+| `token` | `address` | allowance が不足しているトークンのアドレス |
+| `from` | `address` | 送金者（allowance を設定すべき側）のアドレス |
+| `value` | `uint256` | 要求された送金額 |
+
+**発生条件**: `IERC20(token).allowance(from, address(this)) < value`

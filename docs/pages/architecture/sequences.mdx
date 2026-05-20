@@ -1,0 +1,118 @@
+---
+title: シーケンス図
+description: Self-Call・Executor 委任・Verifier 実行のフロー（Mermaid）。
+---
+
+# シーケンス図
+
+以下の 3 パターンが TWC の主要なシーケンスです。
+
+## Self-Call
+
+Self-Call フローでは **EIP-712 の型付きデータ署名は発生しません**（`transfer` には TWC への 1 回のトランザクション署名のみが必要）。オフチェーン検証は主に、イベントに含まれる `commitment` が payload から再現できるか、および受け取ったレシートが期待する TWC コントラクトからのものかを確かめます。
+
+```mermaid
+sequenceDiagram
+    title Self-Call Diagram
+    autonumber
+    participant Verifier
+    participant Sender
+    box Gray Ethereum
+        participant Contract
+        participant Token
+        participant Block
+    end
+    Sender->>Token: Call(One time only)<br/>approve(contractAddress, type(uint256).max)
+    Verifier->>Sender: Send verifiable schema
+    Note over Sender: Create<br/>payload, commitment<br/><br/>commitment = H(payload, nonce)
+    Sender->>+Contract: Call<br/>transfer(token, to, value, commitment)
+    Contract->>Token: Call<br/>transferFrom(msg.sender, to, value)
+    Contract->>Block: Emit event<br/>(msg.sender, to, token, value, commitment)
+    Contract-->>-Sender: Receive TxId
+    Sender->>+Verifier: Send<br/>(payload, nonce, TxId)
+    Verifier->>+Block: Fetch receipt from TxId
+    Block-->>-Verifier: Receive receipt
+    Note over Verifier: Parse event from receipt
+    Note over Verifier: Verify<br/>commitment, payload<br/>commitment = H(payload, nonce)
+    Verifier-->>-Sender: Done
+```
+
+## Delegate to Executor
+
+Executorに送金権限を移譲するフローです。EIP-712の型付きデータ署名を用いてExecutorがtxを実行するため、Senderはガスを第三者に肩代わりすることができます。
+
+```mermaid
+sequenceDiagram
+    title Delegate to Executor Diagram
+    autonumber
+    participant Verifier
+    participant Sender
+    participant Executor
+    box Gray Ethereum
+        participant Contract
+        participant Token
+        participant Block
+    end
+    Sender->>Token: Call(One time only)<br/>approve(contractAddress, type(uint256).max)
+    Verifier->>Sender: Send verifiable schema
+    Note over Sender: Create<br/>payload, commitment<br/><br/>commitment = H(payload, nonce)
+    Note over Sender: Sign typed data for delegating transfer<br/><br/>additionalInclude:<br/>executor, commitment, validAfter, validBefore
+    Sender->>+Executor: Send<br/>(typed data, nonce, signature)
+    Executor->>+Contract: Call<br/>transferWithAuthorization
+    Note over Contract: Verify typed data
+    Contract->>Token: Call<br/>transferFrom(msg.sender, to, value)
+    Contract->>Block: Emit event<br/>(msg.sender, to, token, value, commitment)
+    Contract-->>-Executor: Receive TxId
+    Executor-->>-Sender: Receive TxId
+    Sender->>+Verifier: Send<br/>(payload, nonce, TxId)
+    Verifier->>+Block: Fetch receipt from TxId
+    Block-->>-Verifier: Receive receipt
+    Note over Verifier: Parse event from receipt
+    Note over Verifier: Verify<br/>signature, commitment<br/>commitment = H(payload, nonce)
+    Verifier-->>-Sender: Done
+```
+
+## One-Time Receive-Verify
+
+VerifierがExecutorを兼任する場合は、commitmentの検証を通過し送金が成功するだけでいいので、Blockからreceipt取得し検証するフェーズをスキップできます。
+
+```mermaid
+sequenceDiagram
+    title OneTime Receive-Verify Diagram
+    autonumber
+    participant Verifier
+    participant Sender
+    box Gray Ethereum
+        participant Contract
+        participant Token
+        participant Block
+    end
+    Sender->>Token: Call(One time only)<br/>approve(contractAddress, type(uint256).max)
+    Verifier->>Sender: Send verifiable schema
+    Note over Sender: Create<br/>payload, commitment<br/><br/>commitment = H(payload, nonce)
+    Note over Sender: Sign typed data for delegating transfer<br/><br/>additionalInclude:<br/>executor, commitment, validAfter, validBefore<br/>executor = Verifier
+    Sender->>+Verifier: Send<br/>(typed data, nonce, signature)
+    Note over Verifier: Verify<br/>signature, commitment<br/>commitment = H(payload, nonce)
+    Verifier->>+Contract: Call<br/>transferWithAuthorization
+    Note over Contract: Verify typed data
+    Contract->>Token: Call<br/>transferFrom(msg.sender, to, value)
+    Contract->>Block: Emit event<br/>(msg.sender, to, token, value, commitment)
+    Contract-->>-Verifier: Done
+    Verifier-->>-Sender: Done
+```
+
+## シナリオと実装手順
+
+[シーケンス図](#シーケンス図)の **オフチェーン**参加者（Sender / Executor / Verifier）が、公式 SDK のチュートリアルで **どの見出しに相当するか**の導線です。
+
+| シナリオ                | アクター                  | 主な作業                                                                        | JS                                                                                                                                                                                                                                | React                                                                                                                                                                                                                                      | Rust                                                                                                                                                                                                                                                            |
+| ----------------------- | ------------------------- | ------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Self-Call               | Sender                    | `approve`・commitment・`transfer`                                               | [Step 1b](/sdk-js/guides/tutorial-self-call#step-1b--トークン-approve未だなら) · [Step 2](/sdk-js/guides/tutorial-self-call#step-2--commitment-を用意する) · [Step 3](/sdk-js/guides/tutorial-self-call#step-3--self-call-で送金) | [Step 1b](/sdk-react/guides/tutorial-self-call#step-1b--トークン-approve未だなら) · [Step 2](/sdk-react/guides/tutorial-self-call#step-2--commitment-を用意する) · [Step 3](/sdk-react/guides/tutorial-self-call#step-3--self-call-で送金) | [Step 2](/sdk-rust/guides/tutorial-self-call#step-2--commitment-を用意する) · [Step 3](/sdk-rust/guides/tutorial-self-call#step-3--self-call-で送金)（`approve` は [JS Step 1b](/sdk-js/guides/tutorial-self-call#step-1b--トークン-approve未だなら) 等を参照） |
+| Self-Call               | Verifier                  | レシート照合（`TransferWithCommitmentSent`）                                    | [Tutorial: verify](/sdk-js/guides/tutorial-verify)                                                                                                                                                                                | [Tutorial: verify](/sdk-react/guides/tutorial-verify)                                                                                                                                                                                      | [Tutorial: verify](/sdk-rust/guides/tutorial-verify)                                                                                                                                                                                                            |
+| Delegate to Executor    | Sender                    | EIP-712 署名                                                                    | [Step 1](/sdk-js/guides/tutorial-signature-executor#step-1--送金者側-署名)                                                                                                                                                        | [Step 1](/sdk-react/guides/tutorial-signature-executor#step-1--送金者側-署名)                                                                                                                                                              | [Step 1](/sdk-rust/guides/tutorial-signature-executor#step-1--送金者側-署名)                                                                                                                                                                                    |
+| Delegate to Executor    | Executor                  | `transferWithAuthorization`                                                     | [Step 2](/sdk-js/guides/tutorial-signature-executor#step-2--executor-側-オンチェーン送信)                                                                                                                                         | [Step 2](/sdk-react/guides/tutorial-signature-executor#step-2--executor-側-オンチェーン送信)                                                                                                                                               | [Step 2](/sdk-rust/guides/tutorial-signature-executor#step-2--executor-側-オンチェーン送信)                                                                                                                                                                     |
+| Delegate to Executor    | Verifier                  | レシート照合                                                                    | [Tutorial: verify](/sdk-js/guides/tutorial-verify)                                                                                                                                                                                | [Tutorial: verify](/sdk-react/guides/tutorial-verify)                                                                                                                                                                                      | [Tutorial: verify](/sdk-rust/guides/tutorial-verify)                                                                                                                                                                                                            |
+| One-Time Receive-Verify | Sender                    | 署名を Verifier（= Executor）へ                                                 | [Step 1](/sdk-js/guides/tutorial-signature-executor#step-1--送金者側-署名)                                                                                                                                                        | [Step 1](/sdk-react/guides/tutorial-signature-executor#step-1--送金者側-署名)                                                                                                                                                              | [Step 1](/sdk-rust/guides/tutorial-signature-executor#step-1--送金者側-署名)                                                                                                                                                                                    |
+| One-Time Receive-Verify | Verifier（Executor 兼任） | オフチェーン検証後に `transferWithAuthorization`（図では receipt 再取得を省略） | [Step 0](/sdk-js/guides/tutorial-signature-executor#step-0--送金者と-executor-の準備例) · [Step 2](/sdk-js/guides/tutorial-signature-executor#step-2--executor-側-オンチェーン送信)                                               | [Step 0](/sdk-react/guides/tutorial-signature-executor#step-0--送金者と-executor-の準備例) · [Step 2](/sdk-react/guides/tutorial-signature-executor#step-2--executor-側-オンチェーン送信)                                                  | [Step 0](/sdk-rust/guides/tutorial-signature-executor#step-0--送金者と-executor-の準備例) · [Step 2](/sdk-rust/guides/tutorial-signature-executor#step-2--executor-側-オンチェーン送信)                                                                         |
+
+**Delegate / One-Time 共通**: クライアントと 2 役割の鍵の用意は [Step 0 — 送金者と Executor の準備（例）](/sdk-js/guides/tutorial-signature-executor#step-0--送金者と-executor-の準備例)（React / Rust も同一見出し）を参照してください。

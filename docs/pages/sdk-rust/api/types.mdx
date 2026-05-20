@@ -1,0 +1,29 @@
+---
+title: 主な型 — Rust SDK
+description: args・signed_data・transfer_detail の要点。
+---
+
+# 主な型（`eth_twc_sdk::types`）
+
+## `transfer_detail`
+
+- **`TransferDetail`** — `to`, `token`, `value`（`U256`）
+- **`CommittedTransferDetail`** — 上に `commitment`（`B256`）
+
+## `args` — Self（`Self*` 接頭辞）
+
+| 型 | 対応コントラクト呼び出し |
+| --- | --- |
+| `SelfSingleTransferArgs` | 単一 `transfer` |
+| `SelfUniCommitTransfersArgs` | `details` + 共有 `commitment` |
+| `SelfBatchTransferWithCommitArgs` | `CommittedTransferDetail` のベクタ |
+
+## `args` — 署名入力（`Signature*` / 別名 `SingleTransferArgs` 等）
+
+`SignatureSingleTransferArgs` など。`valid_after` / `valid_before` は `Option` で **`None` → 0 / U256::MAX`** が `sign` モジュールで解決されます。
+
+フィールドの意味は **`sdk_rust/src/types/args.rs`** の doc コメントと同一です（Executor・from・batch_commitment など）。
+
+## `signed_data`
+
+`SignedTransferWithCommit` 等 — **`domain`** に正規化済み `Eip712Domain`、`signature` に `Bytes`。フィールド名は Rust のスネークケース（`valid_after` 等）。

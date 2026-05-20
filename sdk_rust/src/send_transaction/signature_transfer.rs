@@ -159,6 +159,7 @@ pub async fn batch_transfer<P: Provider>(
         details.clone(),
         signed.valid_after,
         signed.valid_before,
+        signed.batch_commitment,
         signed.signature.clone(),
     )
     .from(executor)
@@ -170,6 +171,7 @@ pub async fn batch_transfer<P: Provider>(
             details,
             signed.valid_after,
             signed.valid_before,
+            signed.batch_commitment,
             signed.signature,
         )
         .from(executor)
@@ -212,7 +214,7 @@ pub async fn cancel_authorization<P: Provider>(
     Ok(*pending.tx_hash())
 }
 
-#[cfg(all(test, feature = "test-config"))]
+#[cfg(test)]
 mod tests {
     use alloy::primitives::{address, Bytes, B256, U256};
     use alloy::providers::ProviderBuilder;
@@ -220,22 +222,30 @@ mod tests {
     use serde_json::json;
     use wiremock::{matchers::method, Mock, MockServer, ResponseTemplate};
 
+    use crate::config;
     use crate::types::SignedTransferWithCommit;
 
     use super::single_transfer;
 
-    async fn mock_server_eth_chain_id(chain_id_hex: &str) -> MockServer {
+    async fn mock_rpc_chain_and_code(chain_id_hex: &str, code_hex: &str) -> MockServer {
         let server = MockServer::start().await;
-        let hex = chain_id_hex.to_string();
+        let cid = chain_id_hex.to_string();
+        let code = code_hex.to_string();
         Mock::given(method("POST"))
             .respond_with(move |req: &wiremock::Request| {
                 let body: serde_json::Value =
                     serde_json::from_slice(&req.body).unwrap_or(json!({}));
                 let id = body.get("id").cloned().unwrap_or(json!(1));
+                let m = body.get("method").and_then(|x| x.as_str()).unwrap_or("");
+                let result = match m {
+                    "eth_chainId" => json!(cid.clone()),
+                    "eth_getCode" => json!(code.clone()),
+                    _ => json!(null),
+                };
                 ResponseTemplate::new(200).set_body_json(json!({
                     "jsonrpc": "2.0",
                     "id": id,
-                    "result": hex
+                    "result": result
                 }))
             })
             .mount(&server)
@@ -260,7 +270,7 @@ mod tests {
 
     #[tokio::test]
     async fn single_transfer_errors_when_domain_chain_id_differs_from_provider() {
-        let server = mock_server_eth_chain_id("0x1").await;
+        let server = mock_rpc_chain_and_code("0x1", "0x6000").await;
         let url = server.uri().parse().unwrap();
         let provider = ProviderBuilder::new().connect_http(url);
 
@@ -268,7 +278,7 @@ mod tests {
             "TransferWithCommitment".to_string(),
             "1".to_string(),
             U256::from(137u64),
-            address!("0x2222222222222222222222222222222222222222"),
+            config::transfer_with_commitment_address(),
             B256::ZERO,
         );
         let signed = sample_signed(domain);
@@ -283,7 +293,7 @@ mod tests {
 
     #[tokio::test]
     async fn single_transfer_errors_when_domain_verifying_contract_mismatches_config() {
-        let server = mock_server_eth_chain_id("0x1").await;
+        let server = mock_rpc_chain_and_code("0x1", "0x6000").await;
         let url = server.uri().parse().unwrap();
         let provider = ProviderBuilder::new().connect_http(url);
 
@@ -306,25 +316,56 @@ mod tests {
 }
 
 #[cfg(all(test, not(feature = "test-config")))]
-mod tests_contract_not_configured {
+mod tests_contract_not_deployed {
     use alloy::primitives::{address, Bytes, B256, U256};
     use alloy::providers::ProviderBuilder;
     use alloy::sol_types::Eip712Domain;
+    use serde_json::json;
+    use wiremock::{matchers::method, Mock, MockServer, ResponseTemplate};
 
+    use crate::config;
     use crate::types::SignedTransferWithCommit;
 
     use super::single_transfer;
 
+    async fn mock_rpc_chain_and_code(chain_id_hex: &str, code_hex: &str) -> MockServer {
+        let server = MockServer::start().await;
+        let cid = chain_id_hex.to_string();
+        let code = code_hex.to_string();
+        Mock::given(method("POST"))
+            .respond_with(move |req: &wiremock::Request| {
+                let body: serde_json::Value =
+                    serde_json::from_slice(&req.body).unwrap_or(json!({}));
+                let id = body.get("id").cloned().unwrap_or(json!(1));
+                let m = body.get("method").and_then(|x| x.as_str()).unwrap_or("");
+                let result = match m {
+                    "eth_chainId" => json!(cid.clone()),
+                    "eth_getCode" => json!(code.clone()),
+                    _ => json!(null),
+                };
+                ResponseTemplate::new(200).set_body_json(json!({
+                    "jsonrpc": "2.0",
+                    "id": id,
+                    "result": result
+                }))
+            })
+            .mount(&server)
+            .await;
+        server
+    }
+
     #[tokio::test]
-    async fn single_transfer_fails_when_contract_not_configured_without_test_config() {
-        let provider = ProviderBuilder::new().connect_http("http://127.0.0.1:65530".parse().unwrap());
+    async fn single_transfer_fails_when_expected_twc_not_deployed_without_test_config() {
+        let server = mock_rpc_chain_and_code("0x1", "0x").await;
+        let url = server.uri().parse().unwrap();
+        let provider = ProviderBuilder::new().connect_http(url);
+
+        let twc = config::transfer_with_commitment_address();
         let domain = Eip712Domain {
             name: Some("TransferWithCommitment".into()),
             version: Some("1".into()),
             chain_id: Some(U256::from(1u64)),
-            verifying_contract: Some(address!(
-                "0x2222222222222222222222222222222222222222"
-            )),
+            verifying_contract: Some(twc),
             salt: None,
         };
         let addr = address!("0x1111111111111111111111111111111111111111");
@@ -342,7 +383,7 @@ mod tests_contract_not_configured {
         let r = single_transfer(&provider, addr, signed).await;
         assert!(matches!(
             r,
-            Err(crate::SdkError::ContractNotConfigured)
+            Err(crate::SdkError::ContractNotDeployed { .. })
         ));
     }
 }

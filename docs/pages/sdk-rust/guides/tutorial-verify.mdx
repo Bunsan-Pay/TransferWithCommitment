@@ -1,0 +1,44 @@
+---
+title: "Tutorial: レシート検証（verify）— Rust SDK"
+description: マイニング後の tx_hash と期待パラメータで TransferWithCommitmentSent を照合する（Self-Call / EIP-712+Executor 共通）。
+---
+
+# Tutorial: レシート検証（verify）
+
+**Self-Call** でも **EIP-712 + Executor** でも、マイニング後の **レシート検証**は同じ `verify::verify` です。`Provider` のチェーンがクレートが想定する TWC と整合し、**期待する送金パラメータ**（`VerifyArgs`）が分かっていることが前提です。
+
+送金・署名の手順は [Tutorial: Self-Call](/sdk-rust/guides/tutorial-self-call) または [Tutorial: EIP-712 + Executor](/sdk-rust/guides/tutorial-signature-executor) を参照してください。
+
+## レシートを verify で照合する
+
+```rust
+use eth_twc_sdk::verify::{self, VerifyArgs};
+
+verify::verify(
+    &provider,
+    tx_hash,
+    &VerifyArgs {
+        from,
+        token,
+        to,
+        value,
+        commitment,
+    },
+)
+.await?;
+```
+
+成功すると `Result::Ok(())` です。条件に合うログが 1 件もなければ `SdkError::EventNotFound` です（[SdkError](/sdk-rust/api/sdk-error) 参照）。API 詳細は [verify](/sdk-rust/api/verify) を参照してください。
+
+## （任意）イベントだけ列挙
+
+`verify` と違い、**パラメータ照合は行いません**（JS の `getTransferWithCommitmentSentEventLogs` と同様の意味）。
+
+```rust
+use eth_twc_sdk::verify::get_transfer_with_commitment_sent_event_logs;
+
+let logs =
+    get_transfer_with_commitment_sent_event_logs(&provider, tx_hash).await?;
+```
+
+内容でフィルタはしないため、パラメータ照合は自分で行うか `verify` を使ってください。

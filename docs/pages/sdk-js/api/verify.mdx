@@ -1,0 +1,46 @@
+---
+title: verify モジュール
+description: eth-twc-sdk-js/verify — レシートとイベントの検証。
+---
+
+# `eth-twc-sdk-js/verify`
+
+ファイル: `sdk_js/verify.ts`
+
+ABI は **`eth-twc-sdk-js/abi`** の `transferWithCommitmentAbi` を import しています。
+
+## `getTransferWithCommitmentSentEventLogs(publicClient, hash)`
+
+**事前**: 接続チェーンの canonical TWC アドレスにコントラクトコードがあること（`eth_getCode` で検証。無い場合は `Error`）
+
+**挙動**
+
+1. `getTransactionReceipt({ hash })`
+2. `parseEventLogs` で **`eventName: "TransferWithCommitmentSent"`** のみデコード
+3. ログの `address` が **その SDK ビルドが想定する TWC コントラクト**からのもの**だけ**返す
+
+**戻り値**: 該当ログの配列。**0 件なら空配列** — 例外にはしません。
+
+---
+
+## `verify(publicClient, hash, args)`
+
+| 引数           | 型             | 説明 |
+| -------------- | -------------- | ---- |
+| `publicClient` | `PublicClient` | viem の public client |
+| `hash`         | `Hex`          | トランザクションハッシュ |
+| `args`         | `VerifyArgs`   | [型ページ](/sdk-js/api/types)（`verifyArgsSchema` 由来） |
+
+**処理順**
+
+1. **`verifyArgsSchema.assert(args)` が最優先** — arktype が先に評価される
+2. canonical アドレスでの TWC デプロイ確認（`eth_getCode`）
+3. レシート取得 → `parseEventLogs`（`args` で絞り込み）
+4. TWC コントラクト `address` のログのみ残す
+5. **0 件なら** `throw new Error("TransferWithCommitmentSent event not found")`
+
+**戻り値**: `Promise<void>` — 成功時は **`undefined`**。
+
+```typescript
+import { verify, verifyArgsSchema, type VerifyArgs } from "eth-twc-sdk-js/verify";
+```

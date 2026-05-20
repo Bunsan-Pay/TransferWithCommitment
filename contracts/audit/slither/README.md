@@ -29,18 +29,27 @@ STRICT_SLITHER_EXIT=1 ./scripts/slither-report.sh
 
 ## ファイル一覧
 
-| ファイル | 内容 |
-|----------|------|
-| `REPORT_META.txt` | 実行日時（UTC）、`forge` / `slither` のバージョン、スコープ説明、終了コード |
-| `slither-report.txt` | Slither の標準テキスト出力（detector 一覧） |
-| `slither-checklist.md` | `--checklist` による Markdown チェックリスト |
-| `slither-report.json` | JSON（ツール連携・差分管理用） |
-| `slither-report.sarif` | SARIF（GitHub Advanced Security / IDE 連携用） |
+| ファイル               | 内容                                                                        |
+| ---------------------- | --------------------------------------------------------------------------- |
+| `REPORT_META.txt`      | 実行日時（UTC）、`forge` / `slither` のバージョン、スコープ説明、終了コード |
+| `slither-report.txt`   | Slither の標準テキスト出力（detector 一覧）                                 |
+| `slither-checklist.md` | `--checklist` による Markdown チェックリスト                                |
+| `slither-report.json`  | JSON（ツール連携・差分管理用）                                              |
+| `slither-report.sarif` | SARIF（GitHub Advanced Security / IDE 連携用）                              |
 
 ## スコープ
 
-- **依存ライブラリ**（`lib/` 配下の OpenZeppelin・forge-std 等）は `.slither.config.json` およびスクリプト内の `filter_paths` により **detector 結果から除外**しています。
-- プロジェクト本体の `src/`・`test/`・`script/` に対する検出が中心です。
+- プロジェクト本体の `src/` `test/` `script/` に対する検出が中心です。
+
+- **依存ライブラリの除外**
+
+  依存ライブラリ（`lib/` 配下の OpenZeppelin・forge-std 等）は、 `.slither.config.json` およびスクリプト内の `filter_paths` により **detector 結果から除外**しています。
+
+## 偽陽性
+
+- **arbitrary-send-erc20(High)**
+
+  `SignatureTransfer._transfer` が `from` を任意に指定した `safeTransferFrom` を呼ぶのは、**EIP-712 署名で当該 `from` が執行を認可している** ことを `SignatureChecker.isValidSignatureNow(from, digest, signature)` で検証済みだからです。これは Permit2 / EIP-3009 と同じ構造で、正当な設計です。
 
 ## 終了コード
 

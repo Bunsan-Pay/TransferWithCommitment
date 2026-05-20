@@ -1,0 +1,34 @@
+---
+title: JS SDK 内部 API（config / constants）
+description: sdk_js の CREATE2 定数と re-export。リポジトリメンテナ向け。
+---
+
+# `eth-twc-sdk-js` 設定と定数（内部リファレンス）
+
+利用者向けの概要は [config モジュール](/sdk-js/api/config) と [utils](/sdk-js/api/utils) を参照。**正本**は `sdk_js/twcConstants.ts` と `sdk_js/config.ts` です。
+
+## `twcConstants.ts`
+
+- **`transferWithCommitmentAddress`** — CREATE2 決定論アドレス。`contracts/TWC_CREATE2.md` と同じ値を維持すること。
+- **`TRANSFER_WITH_COMMITMENT_CREATE2_SALT`** — デプロイスクリプトと同期必須。
+- **`EIP712_DOMAIN_NAME`** / **`EIP712_DOMAIN_VERSION`** — コントラクトの `eip712Domain()` と一致させる。
+
+シングルトンファクトリのアドレスは **SDK の責務外**（`contracts` / デプロイ手順を参照）。
+
+## `config.ts`
+
+`twcConstants` から上記を再エクスポートする薄いラッパです。
+
+## ランタイム検証（`utils.ts`）
+
+署名・送信・検証の各エントリでは概ね次の順で検証します。
+
+1. **`assertPublicWalletSameChain`** — `PublicClient` / `WalletClient` の `chain.id` が揃っていること。
+2. **`assertTransferContractDeployed(publicClient)`** — `eth_getCode` で canonical アドレスにコードがあること。無い場合は CREATE2 デプロイ（リポジトリの `contracts/TWC_CREATE2.md`）を案内する `Error`。
+3. 署名パスでは **`getEip712Domain`** のあと **`assertEip712DomainFromContractMatchesExpected`**。
+
+---
+
+## `sdk_js/signatureTransfer/shared/`
+
+署名・送信で共有する EIP-712 ヘルパ（例: **`domainForTypedDataSign`**）。

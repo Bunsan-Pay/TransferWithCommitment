@@ -1,0 +1,36 @@
+---
+title: Commitment — Rust SDK
+description: B256 としてオンチェーンへ渡すまで。
+---
+
+# Commitment — Rust SDK（`B256`）
+
+**根拠と推奨する式**は [Commitment の生成（JS）](/sdk-js/guides/commitment) / [Commitment（React）](/sdk-react/guides/commitment) と同趣旨です。このクレートは **commitment を生成しません**。
+
+推奨する導出方法:
+
+1. **暗号学的にランダムな `r`**（32 バイト）を生成する
+2. アプリと検証者が合意した **`message` バイト列**を用意する
+3. **安全なハッシュ関数 `H`**（例: Keccak-256）を選ぶ
+4. `commitment = H(message || r)` として `B256` を得る
+
+`H` の選定とエンコード規則はプロダクト側の責務です。
+
+```rust
+use alloy::primitives::{keccak256, B256};
+use rand::RngCore;
+
+fn derive_commitment(message: &[u8]) -> (B256, [u8; 32]) {
+    let mut r = [0u8; 32];
+    rand::thread_rng().fill_bytes(&mut r);
+    let mut buf = Vec::with_capacity(message.len() + 32);
+    buf.extend_from_slice(message);
+    buf.extend_from_slice(&r);
+    (keccak256(&buf), r)
+}
+
+let (commitment, r) = derive_commitment(b"invoice-123");
+// r は検証者へ message と共に渡す
+```
+
+Rust では `alloy::primitives::B256` として各 API に渡します。

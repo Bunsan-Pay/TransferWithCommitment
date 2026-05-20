@@ -1,0 +1,49 @@
+---
+title: Commitment の生成 — JS SDK
+description: bytes32 commitment の役割と、アプリ側で満たすべき性質。
+---
+
+# Commitment の生成 — JS SDK（`bytes32`）
+
+`TransferWithCommitment` は送金のたびに **`bytes32 commitment`** をイベントに載せます。SDK は **commitment を生成する関数を提供しません**。理由は次の通りです。
+
+1. **スキーマを特定の形式に固定しない** — Nostr や独自請求 ID など、プロトコルごとに「メッセージ」の定義が違う。
+2. **ハッシュ関数の選択を SDK に固定しない** — 特定のハッシュ関数への依存を単一障害点にしたくない。
+
+## 推奨する性質
+
+オフチェーンで次の形を推奨します。
+
+- **暗号学的にランダムな `r`**（例: 32 バイトの CSPRNG）
+- アプリで合意した **`message` バイト列**
+- 十分に衝突耐性のある **ハッシュ関数 `H`**
+
+**推奨する関係式**（`bytes32` の commitment）: **`message` バイト列とランダム `r` を連結した入力に、衝突耐性のあるハッシュ `H` を適用して commitment を得る**（典型的には `commitment = keccak256(concat(message, r))` の形。`H` とエンコードはアプリと検証者の合意で固定してください）。
+
+例（[viem](https://viem.sh/) で Keccak-256）:
+
+```typescript
+import { keccak256, concat, toBytes } from "viem";
+
+function commitmentFrom(messageUtf8: string, r32: Uint8Array): `0x${string}` {
+  return keccak256(concat([toBytes(messageUtf8), r32]));
+}
+```
+
+`message` のエンコード（JSON か、protobuf か、ABI か）は **送金者と検証者が同じ定義**である必要があります。
+
+## オンチェーンとの関係
+
+- commitment は **事前にオフチェーンで決め**、送金時にコントラクト引数として渡します。
+- 検証者は **レシート上の `TransferWithCommitmentSent`** の `commitment` と、自分が知っている `message` / `r` から再計算した値が一致するかで整合性を確認できます。
+- SDK の `verify` は **イベントのフィールドが引数と一致するか**まで見ます。`message` や `r` そのものは **見ません**（バイト列の意味までは知らない）。
+
+## パターン別
+
+| パターン | commitment の考え方 |
+| --- | --- |
+| 単一送金 | その送金の文脈だけをハッシュ |
+| Uni | **複数 `TransferDetail`** が **1 つの `commitment`** を共有 |
+| Batch | 各行に **行ごとの commitment** + バッチ全体の **`batchCommitment`**（EIP-712 とオンチェーンで使い分け） |
+
+Uni/Batch の詳細は [sign](/sdk-js/api/sign) と [self-transfer](/sdk-js/api/self-transfer) を参照してください。他言語: [commitment（React）](/sdk-react/guides/commitment) · [commitment（Rust）](/sdk-rust/guides/commitment)。

@@ -1,0 +1,65 @@
+---
+title: エクスポート一覧 — React SDK
+description: eth-twc-sdk-react から import できる名前の完全一覧。
+---
+
+# `eth-twc-sdk-react` のエクスポート
+
+パッケージの公開入口は **`package.json` の `"."` → `sdk_react/index.ts`** のみです。このファイルは **`./hooks/index.ts`** からフックと定数を再エクスポートしており、フック実装の集約は `sdkConfig.ts` にあります。アプリはパッケージ根（`eth-twc-sdk-react`）から `transferWithCommitmentAddress` や EIP-712 定数等を import すればよく、`hooks/…` を直接 import する必要はありません。
+
+## 定数（再エクスポート）
+
+| 名前                            | 型の概要                                                           |
+| ------------------------------- | ------------------------------------------------------------------ |
+| `transferWithCommitmentAddress` | `` `0x${string}` `` — CREATE2 決定論アドレス（JS `config` と同値） |
+
+内部のアドレス系定数の意味は [Contributing: JS 内部 API](/contributing/sdk-js-internals)（リポジトリメンテナ向け）。
+
+## デプロイ確認（クエリ）
+
+| フック                                  | 戻り値                                                                                                                                  |
+| --------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------- |
+| `useIsTransferWithCommitmentDeployed()` | `boolean` — `usePublicClient()` で canonical TWC に `eth_getCode` し、コードがあれば `true`。**別名** `useIsSupportedChain()`（非推奨） |
+
+## Self-Call（ミューテーション）
+
+| フック                   | `mutate` / `mutateAsync` の引数型                 | 成功時 `data` |
+| ------------------------ | ------------------------------------------------- | ------------- |
+| `useSelfTransfer`        | `SelfTransferSingleArgs`（`selfTransfer/single`） | `Hex`         |
+| `useSelfUnifiedTransfer` | `SelfTransferUnifiedArgs`                         | `Hex`         |
+| `useSelfBatchTransfer`   | `SelfTransferBatchArgs`                           | `Hex`         |
+
+`UseMutationOptions` で `mutationFn` 以外を差し替え可能（`hooks` 実装参照）。
+
+## 署名（ミューテーション）
+
+| フック                           | 引数型                         | 成功時 `data`               |
+| -------------------------------- | ------------------------------ | --------------------------- |
+| `useSignSingleTransfer`          | `SignatureTransferSingleArgs`  | `SignedSingleTransfer`      |
+| `useSignUniCommitTransfers`      | `SignatureTransferUnifiedArgs` | `SignedUnifiedTransfer`     |
+| `useSignBatchTransferWithCommit` | `SignatureTransferBatchArgs`   | `SignedBatchTransfer`       |
+| `useSignCancelAuthorization`     | `CancelAuthorizationArgs`      | `SignedCancelAuthorization` |
+
+## Executor 送信（ミューテーション）
+
+| フック                             | 引数型                      | 成功時 `data` |
+| ---------------------------------- | --------------------------- | ------------- |
+| `useSendAuthorizedSingleTransfer`  | `SignedSingleTransfer`      | `Hex`         |
+| `useSendAuthorizedUnifiedTransfer` | `SignedUnifiedTransfer`     | `Hex`         |
+| `useSendAuthorizedBatchTransfer`   | `SignedBatchTransfer`       | `Hex`         |
+| `useSendCancelAuthorization`       | `SignedCancelAuthorization` | `Hex`         |
+
+## 読み取り（クエリ）
+
+| フック                              | 主な引数                           | 備考                          |
+| ----------------------------------- | ---------------------------------- | ----------------------------- |
+| `useVerifyTransfer`                 | `txHash`, `args`, 省略可 `options` | `queryKey` / `queryFn` は固定 |
+| `useTransferWithCommitmentSentLogs` | `txHash`, 省略可 `options`         | 同上                          |
+
+## 型エクスポート
+
+| 名前                 | 意味                                                                        |
+| -------------------- | --------------------------------------------------------------------------- |
+| `VerifyTransferArgs` | `Parameters<typeof verify>[2]`（`eth-twc-sdk-js/verify` の第 3 引数と同形） |
+
+詳細な振る舞いは [フック完全リファレンス](/sdk-react/api/hooks) を参照してください。

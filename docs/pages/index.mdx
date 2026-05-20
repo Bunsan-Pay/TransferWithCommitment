@@ -1,0 +1,33 @@
+---
+title: Overview
+description: TransferWithCommitment — オンチェーン送金・コミットメント・公式 SDK を横断したドキュメント。
+---
+
+# TransferWithCommitment ドキュメント
+
+このサイトは **コントラクト（Solidity）・クライアント SDK（JS / React / Rust）** を横断して説明します。用語の定義や全体像は **[Architecture](/architecture)**、オンチェーン実装の詳細は **[Contracts](/contracts)**、各言語の利用方法は **SDK** セクションを参照してください。リポジトリの **CI・SDK 公開・内部設定**は **[Contributing](/contributing)** に集約しています。
+
+## 読み手別
+
+| 誰向け？                   | 入口                                                                      |
+| -------------------------- | ------------------------------------------------------------------------- |
+| **アプリから SDK を使う**  | [SDK (JS)](/sdk-js) / [SDK (React)](/sdk-react) / [SDK (Rust)](/sdk-rust) |
+| **監査・仕様理解**         | [Architecture](/architecture) → [Contracts](/contracts)                   |
+| **TWC リポジトリの開発者** | [Contributing](/contributing)                                             |
+
+## まず読む場所
+
+| セクション                    | 内容                                          |
+| ----------------------------- | --------------------------------------------- |
+| [Architecture](/architecture) | 要件・特徴・図解（Mermaid）                   |
+| [Contracts](/contracts)       | モジュール・リプレイ防止・EIP-712 等          |
+| [SDK (JS)](/sdk-js)           | `eth-twc-sdk-js`（viem）                      |
+| [SDK (React)](/sdk-react)     | `eth-twc-sdk-react`（wagmi + TanStack Query） |
+| [SDK (Rust)](/sdk-rust)       | `eth-twc-sdk`（Alloy）                        |
+| [Contributing](/contributing) | CI、Contracts ツール、SDK リリース・内部 API  |
+
+## すぐに動かす
+
+プロトコルを概観したうえで、**最短で送金→検証まで試す**には [Tutorial: Self-Call（JS SDK）](/sdk-js/guides/tutorial-self-call) がおすすめです（TWC のデプロイとトークン `approve` が必要です）。
+
+Sepolia 上で approve・署名・relay・verify を一画面で試す **[Sepolia Demo](https://bunsan-pay.github.io/TransferWithCommitment/demo/)** も公開しています（GitHub Pages）。

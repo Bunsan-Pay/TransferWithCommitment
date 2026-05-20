@@ -10,11 +10,9 @@ import {
 } from "./fixtures";
 import { UINT256_MAX } from "../../types/utils";
 
-const signatureTransfer = await import(
-  "../../sendTransaction/signatureTransfer"
-);
+import { sendTx } from "../../signatureTransfer/single/sendTx";
 
-describe("sendTransaction/signatureTransfer.ts（config モック済み）", () => {
+describe("signatureTransfer/single/sendTx.ts（config モック済み）", () => {
   const baseSigned = {
     domain: testDomain(),
     from: ADDR,
@@ -32,16 +30,14 @@ describe("sendTransaction/signatureTransfer.ts（config モック済み）", () 
       ...baseSigned,
       domain: testDomain(TEST_VERIFIER_CONTRACT, polygon.id),
     };
-    const publicClient = { chain: mainnet } as unknown as PublicClient;
+    const publicClient = {
+      chain: mainnet,
+      getCode: async () => "0x6000",
+    } as unknown as PublicClient;
     const wallet = { chain: mainnet } as unknown as WalletClient;
 
     await expect(
-      signatureTransfer.singleTransfer(
-        publicClient,
-        wallet,
-        ADDR as Hex,
-        signedData,
-      ),
+      sendTx(publicClient, wallet, ADDR as Hex, signedData),
     ).rejects.toThrow(/domain\.chainId/);
   });
 
@@ -53,20 +49,18 @@ describe("sendTransaction/signatureTransfer.ts（config モック済み）", () 
         mainnet.id,
       ),
     };
-    const publicClient = { chain: mainnet } as unknown as PublicClient;
+    const publicClient = {
+      chain: mainnet,
+      getCode: async () => "0x6000",
+    } as unknown as PublicClient;
     const wallet = { chain: mainnet } as unknown as WalletClient;
 
     await expect(
-      signatureTransfer.singleTransfer(
-        publicClient,
-        wallet,
-        ADDR as Hex,
-        signedData,
-      ),
+      sendTx(publicClient, wallet, ADDR as Hex, signedData),
     ).rejects.toThrow(/verifyingContract/);
   });
 
-  test("singleTransfer は simulate → write", async () => {
+  test("sendTx は simulate → write", async () => {
     const sim = mock(() =>
       Promise.resolve({
         request: {} as unknown as Parameters<WalletClient["writeContract"]>[0],
@@ -76,6 +70,7 @@ describe("sendTransaction/signatureTransfer.ts（config モック済み）", () 
 
     const publicClient = {
       chain: mainnet,
+      getCode: async () => "0x6000",
       simulateContract: sim,
     } as unknown as PublicClient;
     const wallet = {
@@ -83,12 +78,7 @@ describe("sendTransaction/signatureTransfer.ts（config モック済み）", () 
       writeContract: write,
     } as unknown as WalletClient;
 
-    const hash = await signatureTransfer.singleTransfer(
-      publicClient,
-      wallet,
-      ADDR as Hex,
-      baseSigned,
-    );
+    const hash = await sendTx(publicClient, wallet, ADDR as Hex, baseSigned);
 
     expect(hash).toBe("0xabc1");
     expect(sim).toHaveBeenCalled();

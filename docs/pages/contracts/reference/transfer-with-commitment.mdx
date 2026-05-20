@@ -1,0 +1,86 @@
+---
+title: "Reference: TransferWithCommitment"
+description: TransferWithCommitment.sol の最終派生コントラクトのリファレンス。
+---
+
+# TransferWithCommitment（`TransferWithCommitment.sol`）
+
+`SelfTransfer` と `SignatureTransfer` を統合する最終的な派生コントラクト。新たな関数や状態変数は宣言せず、継承によりすべての機能を外部に公開する。
+
+**継承**: `ITransferWithCommitment`, `SelfTransfer`, `SignatureTransfer`
+
+`ITransferWithCommitment` は `ISelfTransfer` と `ISignatureTransfer` を統合するインターフェースであり、新たなメンバは宣言しない。
+
+---
+
+## API Reference
+
+### `constructor`
+
+```solidity
+constructor(string memory name, string memory version) SignatureTransfer(name, version)
+```
+
+| 引数 | 型 | 説明 |
+| --- | --- | --- |
+| `name` | `string` | EIP-712 ドメインの `name` フィールド |
+| `version` | `string` | EIP-712 ドメインの `version` フィールド |
+
+- **前提条件**: デプロイ時に呼び出し可能であること
+- **事後条件**: `SignatureTransfer(name, version)` 経由で `EIP712(name, version)` が設定される。`SelfTransfer`・`State`・`ReentrancyGuard` のデフォルトコンストラクタも実行される。
+- **アクション**: `SignatureTransfer(name, version)` を実行する
+
+---
+
+### 公開 ABI 一覧
+
+本コントラクトが外部に公開するすべての関数の一覧。各関数の詳細は対応するリファレンスページを参照。
+
+**ISelfTransfer 経由（Self-Call 経路）:**
+
+| 関数 | リファレンス |
+| --- | --- |
+| `transfer(address token, address to, uint256 value, bytes32 commitment)` | [SelfTransfer](/contracts/reference/self-transfer) |
+| `transfer(TransferDetail[] calldata details, bytes32 commitment)` | [SelfTransfer](/contracts/reference/self-transfer) |
+| `transfer(CommittedTransferDetail[] calldata details)` | [SelfTransfer](/contracts/reference/self-transfer) |
+
+**ISignatureTransfer 経由（署名委任経路）:**
+
+| 関数 | リファレンス |
+| --- | --- |
+| `transferWithAuthorization(address from, address to, address token, uint256 value, uint256 validAfter, uint256 validBefore, bytes32 commitment, bytes calldata signature)` | [SignatureTransfer](/contracts/reference/signature-transfer) |
+| `transferWithAuthorization(address from, CommittedTransferDetail[] calldata details, uint256 validAfter, uint256 validBefore, bytes32 batchCommitment, bytes calldata signature)` | [SignatureTransfer](/contracts/reference/signature-transfer) |
+| `transferWithAuthorization(address from, TransferDetail[] calldata details, uint256 validAfter, uint256 validBefore, bytes32 commitment, bytes calldata signature)` | [SignatureTransfer](/contracts/reference/signature-transfer) |
+| `cancelAuthorization(address authorizer, bytes32 commitment, bytes calldata signature)` | [SignatureTransfer](/contracts/reference/signature-transfer) |
+
+**IState 経由:**
+
+| 関数 | リファレンス |
+| --- | --- |
+| `commitmentState(address payer, bytes32 commitment)` | [State](/contracts/reference/state) |
+
+**IERC5267 経由（OpenZeppelin EIP712）:**
+
+| 関数 | 説明 |
+| --- | --- |
+| `eip712Domain()` | EIP-5267 に準拠したドメイン情報を返す。OpenZeppelin `EIP712` の実装による。本リファレンスの対象外。 |
+
+**定数:**
+
+| 定数 | リファレンス |
+| --- | --- |
+| `TRANSFER_WITH_COMMIT_TYPEHASH` | [Hash](/contracts/reference/hash) |
+| `UNI_COMMIT_TRANSFER_TYPEHASH` | [Hash](/contracts/reference/hash) |
+| `BATCH_TRANSFER_WITH_COMMIT_TYPEHASH` | [Hash](/contracts/reference/hash) |
+| `CANCEL_AUTHORIZATION_TYPEHASH` | [SignatureTransfer](/contracts/reference/signature-transfer) |
+
+---
+
+## Internal Impl
+
+本コントラクトは新たな内部関数・状態変数を宣言しない。内部実装の詳細は以下を参照:
+
+- [State: Internal Impl](/contracts/reference/state)
+- [SelfTransfer: Internal Impl](/contracts/reference/self-transfer)
+- [SignatureTransfer: Internal Impl](/contracts/reference/signature-transfer)
+- [Hash: Internal Impl](/contracts/reference/hash)

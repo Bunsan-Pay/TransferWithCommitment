@@ -1,0 +1,376 @@
+---
+title: "Reference: SignatureTransfer"
+description: SignatureTransfer.sol の全関数・定数・modifier のリファレンス。
+---
+
+# SignatureTransfer（`SignatureTransfer.sol`）
+
+オフチェーン EIP-712 署名により、署名者（`from`）が指定した executor（`msg.sender`）にトークン送金の実行を委任する経路の実装コントラクト。署名検証は OpenZeppelin `SignatureChecker.isValidSignatureNow` により、EOA（ECDSA）および ERC-1271 コントラクトウォレットの両方に対応する。
+
+デプロイ後の検証ロジックはイミュータブルであり、`Ownable` や `updateVerifier` のようなガバナンス機構は持たない。
+
+**継承**: `ISignatureTransfer`, `State`, `EIP712`, `ReentrancyGuard`
+
+---
+
+## API Reference
+
+### `constructor`
+
+EIP-712 ドメインセパレータを初期化する。
+
+```solidity
+constructor(string memory name, string memory version) EIP712(name, version)
+```
+
+| 引数 | 型 | 説明 |
+| --- | --- | --- |
+| `name` | `string` | EIP-712 ドメインの `name` フィールド |
+| `version` | `string` | EIP-712 ドメインの `version` フィールド |
+
+- **前提条件**: デプロイ時に呼び出し可能であること
+- **事後条件**: `EIP712(name, version)` によりドメインセパレータが設定される
+- **アクション**: 親コンストラクタ `EIP712(name, version)` を実行する
+
+---
+
+### 定数: TypeHash
+
+EIP-712 の署名対象となる型のハッシュ値。いずれも `bytes32 public constant`。
+
+| 定数名 | EIP-712 型文字列 |
+| --- | --- |
+| `TRANSFER_WITH_COMMIT_TYPEHASH` | `TransferWithCommit(address from,address to,address token,address executor,uint256 value,uint256 validAfter,uint256 validBefore,bytes32 commitment)` |
+| `UNI_COMMIT_TRANSFER_TYPEHASH` | `UniCommitTransfers(address from,address executor,TransferDetail[] details,uint256 validAfter,uint256 validBefore,bytes32 commitment)TransferDetail(address to,address token,uint256 value)` |
+| `BATCH_TRANSFER_WITH_COMMIT_TYPEHASH` | `BatchTransferWithCommit(address from,address executor,CommittedTransferDetail[] details,uint256 validAfter,uint256 validBefore,bytes32 batchCommitment)CommittedTransferDetail(address to,address token,uint256 value,bytes32 commitment)` |
+| `CANCEL_AUTHORIZATION_TYPEHASH` | `CancelAuthorization(address authorizer,bytes32 commitment)` |
+
+`TRANSFER_WITH_COMMIT_TYPEHASH`・`UNI_COMMIT_TRANSFER_TYPEHASH`・`BATCH_TRANSFER_WITH_COMMIT_TYPEHASH` の値は `Hash.sol` の同名定数から取得される。`CANCEL_AUTHORIZATION_TYPEHASH` はこのコントラクト内で直接定義されている（値: `0x36cf110689efdef752c1697fa06ba1de348f72954cebdc346d5b55050ff0c8ec`）。
+
+---
+
+### `transferWithAuthorization`（単一送金）
+
+EIP-712 署名に基づき、1 件の送金と 1 つの commitment を紐づけて実行する。
+
+```solidity
+function transferWithAuthorization(
+    address from,
+    address to,
+    address token,
+    uint256 value,
+    uint256 validAfter,
+    uint256 validBefore,
+    bytes32 commitment,
+    bytes calldata signature
+) external nonReentrant validTimestamp(validAfter, validBefore) replayGuard(from, commitment)
+```
+
+| 引数 | 型 | 説明 |
+| --- | --- | --- |
+| `from` | `address` | 送金者（署名者）のアドレス |
+| `to` | `address` | 受取人のアドレス |
+| `token` | `address` | ERC-20 トークンのコントラクトアドレス |
+| `value` | `uint256` | 送金額（トークンの最小単位） |
+| `validAfter` | `uint256` | この承認が有効になる時刻（Unix 秒、この時刻自体は含まない） |
+| `validBefore` | `uint256` | この承認が失効する時刻（Unix 秒、この時刻自体は含まない） |
+| `commitment` | `bytes32` | この送金に紐づける一意なコミットメント |
+| `signature` | `bytes` | `from` による EIP-712 署名 |
+
+**Modifiers**: `nonReentrant`, `validTimestamp(validAfter, validBefore)`, `replayGuard(from, commitment)`
+
+**digest の構築**:
+
+```solidity
+bytes32 structHash = keccak256(abi.encode(
+    TRANSFER_WITH_COMMIT_TYPEHASH,
+    from, to, token, msg.sender, value, validAfter, validBefore, commitment
+));
+bytes32 digest = _hashTypedDataV4(structHash);
+```
+
+- **前提条件**:
+  - 再入呼び出しでないこと（`nonReentrant`）
+  - `validAfter <= validBefore`、`block.timestamp > validAfter`、`block.timestamp < validBefore`（`validTimestamp`）
+  - `!commitmentState(from, commitment)`（`replayGuard` が検証）
+  - `SignatureChecker.isValidSignatureNow(from, digest, signature)` が `true`
+  - `IERC20(token).allowance(from, address(this)) >= value`
+- **事後条件**:
+  - `(from, commitment)` が使用済みとなる
+  - `from` から `to` へ `value` のトークンが移転される
+  - `TransferWithCommitmentSent(from, to, token, value, commitment)` が発行される
+- **アクション**: `replayGuard` で commitment 消費 → structHash 算出 → `_hashTypedDataV4` → `isValidSignatureNow` で署名検証 → `_transfer(token, from, to, value, commitment)`
+
+---
+
+### `transferWithAuthorization`（バッチ: `CommittedTransferDetail[]`）
+
+EIP-712 署名に基づき、行ごとの commitment を持つ複数の送金を実行する。`batchCommitment` がバッチ全体のリプレイ防止に使用され、各明細の `commitment` も個別に消費される。
+
+```solidity
+function transferWithAuthorization(
+    address from,
+    CommittedTransferDetail[] calldata details,
+    uint256 validAfter,
+    uint256 validBefore,
+    bytes32 batchCommitment,
+    bytes calldata signature
+) external nonReentrant validTimestamp(validAfter, validBefore) replayGuard(from, batchCommitment)
+```
+
+| 引数 | 型 | 説明 |
+| --- | --- | --- |
+| `from` | `address` | 送金者（署名者）のアドレス |
+| `details` | `CommittedTransferDetail[]` | 送金明細の配列（各要素に commitment を含む） |
+| `validAfter` | `uint256` | この承認が有効になる時刻（Unix 秒、この時刻自体は含まない） |
+| `validBefore` | `uint256` | この承認が失効する時刻（Unix 秒、この時刻自体は含まない） |
+| `batchCommitment` | `bytes32` | バッチ全体に紐づく一意なコミットメント。`replayGuard(from, batchCommitment)` で消費される。各 `details[i].commitment` と同一のビットマップを共有するため、値が衝突しないようにする必要がある。 |
+| `signature` | `bytes` | `from` による EIP-712 署名 |
+
+**Modifiers**: `nonReentrant`, `validTimestamp(validAfter, validBefore)`, `replayGuard(from, batchCommitment)`
+
+**digest の構築**:
+
+```solidity
+bytes32 committedTransferDetailsHash = Hash.hashBatchCommittedTransferDetails(details);
+bytes32 structHash = keccak256(abi.encode(
+    BATCH_TRANSFER_WITH_COMMIT_TYPEHASH,
+    from, msg.sender, committedTransferDetailsHash, validAfter, validBefore, batchCommitment
+));
+bytes32 digest = _hashTypedDataV4(structHash);
+```
+
+- **前提条件**:
+  - 再入呼び出しでないこと（`nonReentrant`）
+  - `validAfter <= validBefore`、`block.timestamp > validAfter`、`block.timestamp < validBefore`（`validTimestamp`）
+  - `!commitmentState(from, batchCommitment)`（`replayGuard` が検証）
+  - `details.length > 0`（空配列は revert）
+  - `SignatureChecker.isValidSignatureNow(from, digest, signature)` が `true`
+  - 各 `details[i]` について:
+    - `!commitmentState(from, details[i].commitment)`
+    - `IERC20(details[i].token).allowance(from, address(this)) >= details[i].value`
+- **事後条件**:
+  - `(from, batchCommitment)` が使用済みとなる（`replayGuard` により関数本体の実行前にマーク）
+  - 各 `(from, details[i].commitment)` が使用済みとなる
+  - 各明細について送金と `TransferWithCommitmentSent`（各 `details[i].commitment` を含む）が発行される
+- **アクション**: `replayGuard(from, batchCommitment)` → `Hash.hashBatchCommittedTransferDetails(details)` → structHash → `_hashTypedDataV4` → `isValidSignatureNow` → `_batchTransfers(from, details)`
+
+---
+
+### `transferWithAuthorization`（Uni: `TransferDetail[]`）
+
+EIP-712 署名に基づき、複数の送金明細を 1 つの共有 commitment と紐づけて一括実行する。
+
+```solidity
+function transferWithAuthorization(
+    address from,
+    TransferDetail[] calldata details,
+    uint256 validAfter,
+    uint256 validBefore,
+    bytes32 commitment,
+    bytes calldata signature
+) external nonReentrant validTimestamp(validAfter, validBefore) replayGuard(from, commitment)
+```
+
+| 引数 | 型 | 説明 |
+| --- | --- | --- |
+| `from` | `address` | 送金者（署名者）のアドレス |
+| `details` | `TransferDetail[]` | 送金明細の配列 |
+| `validAfter` | `uint256` | この承認が有効になる時刻（Unix 秒、この時刻自体は含まない） |
+| `validBefore` | `uint256` | この承認が失効する時刻（Unix 秒、この時刻自体は含まない） |
+| `commitment` | `bytes32` | 全明細で共有される一意なコミットメント |
+| `signature` | `bytes` | `from` による EIP-712 署名 |
+
+**Modifiers**: `nonReentrant`, `validTimestamp(validAfter, validBefore)`, `replayGuard(from, commitment)`
+
+**digest の構築**:
+
+```solidity
+bytes32 transferDetailsHash = Hash.hashBatchTransferDetails(details);
+bytes32 structHash = keccak256(abi.encode(
+    UNI_COMMIT_TRANSFER_TYPEHASH,
+    from, msg.sender, transferDetailsHash, validAfter, validBefore, commitment
+));
+bytes32 digest = _hashTypedDataV4(structHash);
+```
+
+- **前提条件**:
+  - 再入呼び出しでないこと（`nonReentrant`）
+  - `validAfter <= validBefore`、`block.timestamp > validAfter`、`block.timestamp < validBefore`（`validTimestamp`）
+  - `!commitmentState(from, commitment)`（`replayGuard` が検証）
+  - `details.length > 0`（空配列は revert）
+  - `SignatureChecker.isValidSignatureNow(from, digest, signature)` が `true`
+  - 各 `details[i]` について `IERC20(details[i].token).allowance(from, address(this)) >= details[i].value`
+- **事後条件**:
+  - `(from, commitment)` が使用済みとなる
+  - 各明細について送金と `TransferWithCommitmentSent`（同一の `commitment` 値）が発行される
+- **アクション**: `replayGuard(from, commitment)` → `Hash.hashBatchTransferDetails(details)` → structHash → `_hashTypedDataV4` → `isValidSignatureNow` → `_unifiedTransfers(from, details, commitment)`
+
+---
+
+### `cancelAuthorization`
+
+まだ使用されていない commitment を使用済みとしてマークすることで、その commitment による送金承認を無効化する。トークンの移転は行わない。
+
+```solidity
+function cancelAuthorization(
+    address authorizer,
+    bytes32 commitment,
+    bytes calldata signature
+) external nonReentrant replayGuard(authorizer, commitment)
+```
+
+| 引数 | 型 | 説明 |
+| --- | --- | --- |
+| `authorizer` | `address` | 承認を取り消す署名者のアドレス |
+| `commitment` | `bytes32` | 無効化するコミットメント |
+| `signature` | `bytes` | `authorizer` による EIP-712 署名 |
+
+**Modifiers**: `nonReentrant`, `replayGuard(authorizer, commitment)`
+
+**digest の構築**:
+
+```solidity
+bytes32 structHash = keccak256(abi.encode(
+    CANCEL_AUTHORIZATION_TYPEHASH, authorizer, commitment
+));
+bytes32 digest = _hashTypedDataV4(structHash);
+```
+
+- **前提条件**:
+  - 再入呼び出しでないこと（`nonReentrant`）
+  - `!commitmentState(authorizer, commitment)`（`replayGuard` が検証）
+  - `SignatureChecker.isValidSignatureNow(authorizer, digest, signature)` が `true`
+- **事後条件**:
+  - `(authorizer, commitment)` が使用済みとなる
+  - トークンの移転は行われない
+  - 同一 commitment での `transferWithAuthorization` は以後 revert する
+- **アクション**: `replayGuard(authorizer, commitment)` → structHash → `_hashTypedDataV4` → `isValidSignatureNow` による署名検証のみ（送金なし）
+
+---
+
+## Internal Impl
+
+### `validTimestamp`（modifier）
+
+EIP-712 承認の有効期間を検証する修飾子。境界値（ちょうどの時刻）は有効期間に含まれない（開区間）。
+
+```solidity
+modifier validTimestamp(uint256 validAfter, uint256 validBefore)
+```
+
+| 引数 | 型 | 説明 |
+| --- | --- | --- |
+| `validAfter` | `uint256` | 有効期間の開始時刻（Unix 秒、この時刻自体は含まない） |
+| `validBefore` | `uint256` | 有効期間の終了時刻（Unix 秒、この時刻自体は含まない） |
+
+- **前提条件**:
+  - `validAfter` と `validBefore` は `validAfter <= validBefore` であること（revert メッセージは `SignatureTransfer.sol` の `validTimestamp` 先頭の `require` を参照）
+  - `block.timestamp` は `validAfter` より大きいこと（同 modifier 第 2 の `require`）
+  - `block.timestamp` は `validBefore` より小さいこと（同 modifier 第 3 の `require`）
+- **事後条件**: なし
+- **アクション**: 3 つの `require` を順に検証し、すべて通過した場合に `_`（関数本体）を実行する
+
+---
+
+### `_batchTransfers`
+
+バッチ経路（`CommittedTransferDetail[]`）の明細を順に処理する内部関数。各明細について `_transferWithGuard` を呼び、行ごとの commitment を消費する。
+
+```solidity
+function _batchTransfers(
+    address from,
+    CommittedTransferDetail[] calldata details
+) private
+```
+
+| 引数 | 型 | 説明 |
+| --- | --- | --- |
+| `from` | `address` | 送金者のアドレス |
+| `details` | `CommittedTransferDetail[]` | 送金明細の配列 |
+
+- **前提条件**: 呼び出し元で署名検証が完了していること
+- **事後条件**: 各 `details[i]` について `_transferWithGuard` の効果が適用される
+- **アクション**: `details` を先頭から順にループし、`_transferWithGuard(detail.token, from, detail.to, detail.value, detail.commitment)` を呼び出す
+
+---
+
+### `_unifiedTransfers`
+
+Uni 経路（`TransferDetail[]` + 共有 commitment）の明細を順に処理する内部関数。リプレイ防止は外側の `replayGuard` で完了しているため、ここでは `_transfer` を直接呼ぶ。
+
+```solidity
+function _unifiedTransfers(
+    address from,
+    TransferDetail[] calldata details,
+    bytes32 commitment
+) private
+```
+
+| 引数 | 型 | 説明 |
+| --- | --- | --- |
+| `from` | `address` | 送金者のアドレス |
+| `details` | `TransferDetail[]` | 送金明細の配列 |
+| `commitment` | `bytes32` | 全明細で共有されるコミットメント |
+
+- **前提条件**: 呼び出し元で署名検証が完了しており、`(from, commitment)` は `replayGuard` で消費済みであること
+- **事後条件**: 各明細について同一の `commitment` で送金とイベント発行が行われる
+- **アクション**: `details` を先頭から順にループし、`_transfer(detail.token, from, detail.to, detail.value, commitment)` を呼び出す
+
+---
+
+### `_transferWithGuard`
+
+`replayGuard` を適用したうえで `_transfer` を呼び出す。`SelfTransfer` 版と異なり、`from` を明示的に引数で受け取る（`msg.sender` ではなく署名者のアドレスを使用するため）。
+
+```solidity
+function _transferWithGuard(
+    address token,
+    address from,
+    address to,
+    uint256 value,
+    bytes32 commitment
+) private replayGuard(from, commitment)
+```
+
+| 引数 | 型 | 説明 |
+| --- | --- | --- |
+| `token` | `address` | ERC-20 トークンのコントラクトアドレス |
+| `from` | `address` | 送金者のアドレス |
+| `to` | `address` | 受取人のアドレス |
+| `value` | `uint256` | 送金額 |
+| `commitment` | `bytes32` | コミットメント |
+
+**Modifiers**: `replayGuard(from, commitment)`
+
+- **前提条件**: `!commitmentState(from, commitment)`（`replayGuard` が検証）
+- **事後条件**: `(from, commitment)` が使用済みとなり、`_transfer` の効果が適用される
+- **アクション**: `_transfer(token, from, to, value, commitment)` を呼び出す
+
+---
+
+### `_transfer`
+
+allowance の検証、ERC-20 トークンの移転、イベント発行を行う最終的な送金処理。`SelfTransfer` 版と異なり、`from` を明示的に引数で受け取る。
+
+```solidity
+function _transfer(
+    address token,
+    address from,
+    address to,
+    uint256 value,
+    bytes32 commitment
+) private
+```
+
+| 引数 | 型 | 説明 |
+| --- | --- | --- |
+| `token` | `address` | ERC-20 トークンのコントラクトアドレス |
+| `from` | `address` | 送金者のアドレス |
+| `to` | `address` | 受取人のアドレス |
+| `value` | `uint256` | 送金額 |
+| `commitment` | `bytes32` | コミットメント |
+
+- **前提条件**: `IERC20(token).allowance(from, address(this)) >= value`（不足時は `AllowanceNotEnough(token, from, value)` で revert）
+- **事後条件**: `from` から `to` へ `value` のトークンが移転され、`TransferWithCommitmentSent(from, to, token, value, commitment)` が発行される
+- **アクション**: `IERC20(token).safeTransferFrom(from, to, value)` を実行し、`TransferWithCommitmentSent` を emit する

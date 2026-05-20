@@ -1,0 +1,24 @@
+---
+title: config モジュール
+description: eth-twc-sdk-js/config の利用者向け定数
+---
+
+# `eth-twc-sdk-js/config`
+
+**ファイル**: `sdk_js/config.ts`（値の正本は `sdk_js/twcConstants.ts`）
+
+## `transferWithCommitmentAddress`
+
+型: `` `0x${string}` ``
+
+`TransferWithCommitment` の **CREATE2 決定論アドレス**（既定ビルド）。接続チェーンでこのアドレスにコントラクトコードが無い場合、SDK は `eth_getCode` で検出して失敗します。デプロイ手順はリポジトリの `contracts/TWC_CREATE2.md` を参照。
+
+## `TRANSFER_WITH_COMMITMENT_CREATE2_SALT`
+
+CREATE2 に用いる salt（`contracts` スクリプトと同値）。
+
+## `EIP712_DOMAIN_NAME` / `EIP712_DOMAIN_VERSION`
+
+コントラクトの `eip712Domain()` と一致させる定数。
+
+Singleton factory アドレスは **SDK では export しません**（デプロイは `contracts` 側のドキュメント・スクリプトを参照）。

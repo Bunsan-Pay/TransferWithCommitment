@@ -1,0 +1,120 @@
+---
+title: Getting Started — JS SDK
+description: import・クライアント・送金・レシート検証（verify）まで。
+---
+
+# Getting Started
+
+## 1. import のルール
+
+**`import "eth-twc-sdk-js"` は使えません。** 必ず [exports](/sdk-js/api/exports) に載っているパスから import します。
+
+```typescript
+import { transferWithCommitmentAddress } from "eth-twc-sdk-js/config";
+import { sendTx as selfTransferSingle } from "eth-twc-sdk-js/selfTransfer/single";
+import { verify } from "eth-twc-sdk-js/verify";
+```
+
+## 2. PublicClient と WalletClient
+
+`PublicClient` は読み取り・シミュレーション、`WalletClient` は署名・送信に使います。両方に **同じ `chain`** を渡してください。
+
+```typescript
+import { createPublicClient, createWalletClient, http } from "viem";
+import { sepolia } from "viem/chains";
+import { privateKeyToAccount } from "viem/accounts";
+
+const transport = http("https://…");
+const publicClient = createPublicClient({ chain: sepolia, transport });
+const account = privateKeyToAccount(process.env.PRIVATE_KEY as `0x${string}`);
+const walletClient = createWalletClient({ account, chain: sepolia, transport });
+```
+
+## 3. チェーンとデプロイ
+
+`PublicClient` / `WalletClient` には **`chain`（`chain.id`）を必ず設定**してください。SDK はチェーン allowlist を持ちませんが、EIP-712 と `eth_getCode` の検証に `chain.id` が必要です。
+
+接続先では、CREATE2 の **canonical TWC アドレス**にコントラクトがデプロイされている必要があります。未デプロイのチェーンでは [utils のデプロイ検証](/sdk-js/api/utils#asserttransfercontractdeployedpublicclient-contractaddress) と同様の失敗になります。wagmi / viem では利用するネットワークの `chain` 定義を `chains` に載せてください。
+
+## 4. 最初の送金の骨格（Self-Call と SignatureTransfer）
+
+`approve`・正しい `chain.id`・canonical TWC のデプロイを満たしたうえでの概形です。変数・`commitment`・2 鍵の用意などは各チュートリアル参照。
+
+:::code-group
+
+```typescript [Self-Call]
+import { sendTx } from "eth-twc-sdk-js/selfTransfer/single";
+
+const txHash = await sendTx(publicClient, walletClient, account.address, {
+  token,
+  to,
+  value,
+  commitment,
+});
+```
+
+```typescript [SignatureTransfer（署名 → Executor 送信）]
+/** Sender side **/
+import { sign as signSingle } from "eth-twc-sdk-js/signatureTransfer/single";
+
+const signed = await signSingle(
+  publicClient,
+  senderWallet,
+  senderAccount.address,
+  {
+    from: senderAccount.address,
+    to,
+    token,
+    executor: executorAccount.address,
+    value,
+    commitment,
+  },
+);
+
+/** Executor side **/
+import { signedDataSchema, sendTx as sendAuthorized } from "eth-twc-sdk-js/signatureTransfer/single";
+
+// 中継で届いたペイロードはアプリの I/O 層で parse し、必要なら検証してから渡す
+signedDataSchema.assert(signed);
+
+const txHash = await sendAuthorized(
+  publicClient,
+  executorWallet,
+  executorAccount.address,
+  signed,
+);
+```
+
+:::
+
+手順付きの完全版は Self-Call: [Tutorial: Self-Call](/sdk-js/guides/tutorial-self-call)、SignatureTransfer: [Tutorial: EIP-712 + Executor](/sdk-js/guides/tutorial-signature-executor)。
+
+## 5. レシート検証（verify）
+
+`sendTx` が返した **`txHash`** がマイニングされたあと、レシートと期待パラメータを照合できます。**Self-Call でも SignatureTransfer でも同じ `verify`** です。
+
+```typescript
+import { verify } from "eth-twc-sdk-js/verify";
+
+await verify(publicClient, txHash, {
+  from: senderAddress,
+  token,
+  to,
+  value,
+  commitment,
+});
+```
+
+API の挙動は [verify](/sdk-js/api/verify)、手順の詳細は [Tutorial: レシート検証（verify）](/sdk-js/guides/tutorial-verify) を参照してください。
+
+## 6. 型だけ欲しいとき
+
+```typescript
+import type { SelfTransferSingleArgs } from "eth-twc-sdk-js/selfTransfer/single";
+import type {
+  SignatureTransferSingleArgs,
+  SignedSingleTransfer,
+} from "eth-twc-sdk-js/signatureTransfer/single";
+```
+
+各 variant の **入力**は `argsSchema`、**署名済み**は `signedDataSchema` と対応しています。[型と arktype](/sdk-js/api/types) を参照してください。

@@ -75,8 +75,11 @@ describe("useSign*", () => {
 
   test("config ゼロアドレスでは assert が失敗", async () => {
     setSdkConfigAddressZero();
-    const { publicClient, walletClient } = stubClientsSignSuccess();
-    wagmiState.publicClient = publicClient;
+    const { publicClient: pc, walletClient } = stubClientsSignSuccess();
+    wagmiState.publicClient = stubPublicClient({
+      getEip712Domain: pc.getEip712Domain,
+      getCode: async () => "0x",
+    });
     wagmiState.walletClient = walletClient;
     wagmiState.address = ADDR as Hex;
 
@@ -94,7 +97,7 @@ describe("useSign*", () => {
     });
     await waitFor(() => expect(result.current.isError).toBe(true));
     expect(result.current.error?.message).toMatch(
-      /not configured \(zero address\)/,
+      /not deployed at/,
     );
   });
 
@@ -200,6 +203,7 @@ describe("useSign*", () => {
       details: [
         { to: ADDR_B, token: ADDR, value: 1n, commitment: COMMIT },
       ],
+      batchCommitment: ("0x" + "aa".repeat(32)) as Hex,
     });
     await waitFor(() => expect(result.current.isError).toBe(true));
     expect(result.current.error?.message).toMatch(/getEip712Domain failed/);

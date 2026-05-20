@@ -48,6 +48,8 @@ pub struct SignedBatchTransferWithCommit {
     pub domain: Eip712Domain,
     pub from: Address,
     pub details: Vec<CommittedTransferDetail>,
+    /// EIP-712 の `batchCommitment`（コントラクトの `replayGuard(from, batchCommitment)` と一致）。
+    pub batch_commitment: B256,
     /// [`SignedTransferWithCommit`] の `valid_after` / `valid_before` と同じ意味。
     pub valid_after: U256,
     pub valid_before: U256,

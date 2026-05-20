@@ -8,13 +8,15 @@ use thiserror::Error;
 pub enum SdkError {
     /// [`crate::config::transfer_with_commitment_address`] がゼロアドレスのまま API を呼んだ。
     #[error(
-        "transferWithCommitmentAddress is not configured (zero address). Set the compile-time address in config.rs, or with feature integration-test set ETH_TWC_CONTRACT_ADDRESS."
+        "transferWithCommitmentAddress is not configured (zero address). Set ETH_TWC_CONTRACT_ADDRESS for integration-test, or use default release build with CREATE2 address baked in config."
     )]
     ContractNotConfigured,
 
-    /// プロバイダのチェーン ID が [`crate::config::SUPPORTED_CHAIN_IDS`] に含まれない。
-    #[error("Unsupported chain: chain id {0}")]
-    UnsupportedChain(u64),
+    /// 期待する TWC アドレスにコントラクトコードが無い。
+    #[error(
+        "TransferWithCommitment is not deployed at {address} on chain id {chain_id} (no contract code). Deploy via CREATE2 (see contracts/TWC_CREATE2.md)."
+    )]
+    ContractNotDeployed { address: Address, chain_id: u64 },
 
     /// 署名済みデータの `domain.chainId` が RPC のチェーン ID と一致しない。
     #[error(

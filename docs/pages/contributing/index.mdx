@@ -1,0 +1,29 @@
+---
+title: Contributing — 概要
+description: TWC リポジトリの開発者・リリース担当向け。CI、コントラクト、SDK の公開手順と内部 API を集約。
+---
+
+# Contributing
+
+この章は **TWC モノレポを編集し、パッケージを公開するコントリビューター**向けです。アプリから SDK を **利用するだけ**の開発者は [SDK (JS)](/sdk-js)、[SDK (React)](/sdk-react)、[SDK (Rust)](/sdk-rust) を、プロトコル理解・監査は [Architecture](/architecture)・[Contracts](/contracts) を読んでください。
+
+## 作業別の入口
+
+| やりたいこと | ページ |
+| --- | --- |
+| CI をローカルで再現する | [CI と開発フロー](/contributing/monorepo-ci) |
+| リポジトリ構成・`sdk_js` の開発ビルド | [リポジトリ構成と規約](/contributing/repository-layout) |
+| このドキュメントサイトを編集・プレビュー | [ドキュメントサイト](/contributing/docs-site) |
+| Foundry / Slither / デプロイ | [Contracts 開発・ツールチェーン](/contributing/contracts-development) |
+| `eth-twc-sdk-js` の npm 公開・アドレス埋め込み | [JS SDK リリースと公開手順](/contributing/sdk-js-release) |
+| `sdk_js/config` の内部定数 | [JS SDK 内部 API](/contributing/sdk-js-internals) |
+| `eth-twc-sdk` の crates.io 公開・`config.rs` | [Rust SDK リリースと公開手順](/contributing/sdk-rust-release) |
+| `test-config` / `integration-test` | [Rust SDK の feature フラグ](/contributing/sdk-rust-feature-flags) |
+| Anvil 結合テスト | [Rust SDK 結合テスト](/contributing/sdk-rust-integration-tests) |
+| `eth_twc_sdk::config` の内部 | [Rust SDK 内部 API](/contributing/sdk-rust-internals) |
+
+## 読み順（例）
+
+1. [CI と開発フロー](/contributing/monorepo-ci) — スクリプトの位置づけ
+2. 触る領域に応じて [JS](/contributing/sdk-js-release) または [Rust](/contributing/sdk-rust-release) のリリース手順
+3. 挙動の正本は各 `sdk_*/` のソース、および `contracts/SPEC.md` / `sdk_js/SPEC.md` 等のリポジトリ内一次資料

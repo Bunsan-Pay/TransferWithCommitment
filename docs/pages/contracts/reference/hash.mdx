@@ -1,0 +1,172 @@
+---
+title: "Reference: Hash"
+description: Hash.sol の EIP-712 TypeHash 定数とハッシュ関数のリファレンス。
+---
+
+# Hash（`Hash.sol`）
+
+EIP-712 の TypeHash 定数と、送金明細のエンコード・ハッシュ化を担当するライブラリ。`SignatureTransfer` から digest 計算に利用される。
+
+---
+
+## API Reference
+
+### 定数
+
+いずれも `bytes32 public constant`。値は対応する EIP-712 型文字列の `keccak256` ハッシュである。
+
+#### `TRANSFER_WITH_COMMIT_TYPEHASH`
+
+```
+keccak256("TransferWithCommit(address from,address to,address token,address executor,uint256 value,uint256 validAfter,uint256 validBefore,bytes32 commitment)")
+```
+
+値: `0xc912cc151d552cccfc1b7e01c01813079a180595f06bc31b49bb9776bcbaf9e7`
+
+単一送金の `transferWithAuthorization` で使用される。
+
+---
+
+#### `UNI_COMMIT_TRANSFER_TYPEHASH`
+
+```
+keccak256("UniCommitTransfers(address from,address executor,TransferDetail[] details,uint256 validAfter,uint256 validBefore,bytes32 commitment)TransferDetail(address to,address token,uint256 value)")
+```
+
+値: `0xf5592802ae1a0ebc83eae180371f77e623087c28f0910e80c75784ff90fa7783`
+
+Uni 経路（`TransferDetail[]` + 共有 commitment）の `transferWithAuthorization` で使用される。
+
+---
+
+#### `BATCH_TRANSFER_WITH_COMMIT_TYPEHASH`
+
+```
+keccak256("BatchTransferWithCommit(address from,address executor,CommittedTransferDetail[] details,uint256 validAfter,uint256 validBefore,bytes32 batchCommitment)CommittedTransferDetail(address to,address token,uint256 value,bytes32 commitment)")
+```
+
+値: `0x106e0055ba0f813d8dae754dbffed12d3ebda71c6660603ea71b58df3210e94b`
+
+バッチ経路（`CommittedTransferDetail[]` + `batchCommitment`）の `transferWithAuthorization` で使用される。
+
+---
+
+#### `TRANSFER_DETAIL_TYPEHASH`
+
+```
+keccak256("TransferDetail(address to,address token,uint256 value)")
+```
+
+値: `0xf28c27030b5e54646e0eb1076a80d92c751231b70611de6bd5b43383d1ceceab`
+
+`TransferDetail` 構造体のハッシュ計算で使用される。
+
+---
+
+#### `COMMITTED_TRANSFER_DETAIL_TYPEHASH`
+
+```
+keccak256("CommittedTransferDetail(address to,address token,uint256 value,bytes32 commitment)")
+```
+
+値: `0x1b040f87c324efbeabedc6b62a0a8e0f02ca3e786f7f73ae0875b0648e0afe6c`
+
+`CommittedTransferDetail` 構造体のハッシュ計算で使用される。
+
+---
+
+## Internal Impl
+
+### `hashTransferDetail`
+
+単一の `TransferDetail` を EIP-712 準拠でハッシュする。
+
+```solidity
+function hashTransferDetail(
+    TransferDetail calldata detail
+) internal pure returns (bytes32 result)
+```
+
+| 引数 | 型 | 説明 |
+| --- | --- | --- |
+| `detail` | `TransferDetail` | ハッシュ対象の送金明細 |
+
+| 戻り値 | 型 | 説明 |
+| --- | --- | --- |
+| `result` | `bytes32` | ハッシュ値 |
+
+- **前提条件**: なし（純粋関数）
+- **事後条件**: `keccak256(abi.encode(TRANSFER_DETAIL_TYPEHASH, detail.to, detail.token, detail.value))` を返す
+- **アクション**: 純粋計算
+
+---
+
+### `hashBatchTransferDetails`
+
+`TransferDetail` 配列の各要素をハッシュし、それらを連結してさらにハッシュする。Uni 経路の digest 計算で使用される。
+
+```solidity
+function hashBatchTransferDetails(
+    TransferDetail[] calldata details
+) internal pure returns (bytes32 result)
+```
+
+| 引数 | 型 | 説明 |
+| --- | --- | --- |
+| `details` | `TransferDetail[]` | ハッシュ対象の送金明細配列 |
+
+| 戻り値 | 型 | 説明 |
+| --- | --- | --- |
+| `result` | `bytes32` | 配列全体のハッシュ値 |
+
+- **前提条件**: なし（純粋関数）
+- **事後条件**: 各要素に `hashTransferDetail` を適用したハッシュ配列を `abi.encodePacked` し `keccak256` した値を返す
+- **アクション**: ループで `hashTransferDetail(details[i])` → `bytes32[]` を構築 → `keccak256(abi.encodePacked(hashes))`
+
+---
+
+### `hashCommittedTransferDetail`
+
+単一の `CommittedTransferDetail` を EIP-712 準拠でハッシュする。
+
+```solidity
+function hashCommittedTransferDetail(
+    CommittedTransferDetail calldata detail
+) internal pure returns (bytes32 result)
+```
+
+| 引数 | 型 | 説明 |
+| --- | --- | --- |
+| `detail` | `CommittedTransferDetail` | ハッシュ対象の送金明細 |
+
+| 戻り値 | 型 | 説明 |
+| --- | --- | --- |
+| `result` | `bytes32` | ハッシュ値 |
+
+- **前提条件**: なし（純粋関数）
+- **事後条件**: `keccak256(abi.encode(COMMITTED_TRANSFER_DETAIL_TYPEHASH, detail.to, detail.token, detail.value, detail.commitment))` を返す
+- **アクション**: 純粋計算
+
+---
+
+### `hashBatchCommittedTransferDetails`
+
+`CommittedTransferDetail` 配列の各要素をハッシュし、それらを連結してさらにハッシュする。バッチ経路の digest 計算で使用される。
+
+```solidity
+function hashBatchCommittedTransferDetails(
+    CommittedTransferDetail[] calldata details
+) internal pure returns (bytes32 result)
+```
+
+| 引数 | 型 | 説明 |
+| --- | --- | --- |
+| `details` | `CommittedTransferDetail[]` | ハッシュ対象の送金明細配列 |
+
+| 戻り値 | 型 | 説明 |
+| --- | --- | --- |
+| `result` | `bytes32` | 配列全体のハッシュ値 |
+
+- **前提条件**: なし（純粋関数）
+- **事後条件**: 各要素に `hashCommittedTransferDetail` を適用したハッシュ配列を `abi.encodePacked` し `keccak256` した値を返す
+- **アクション**: ループで `hashCommittedTransferDetail(details[i])` → `bytes32[]` を構築 → `keccak256(abi.encodePacked(hashes))`

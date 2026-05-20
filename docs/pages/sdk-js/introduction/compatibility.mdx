@@ -1,0 +1,30 @@
+---
+title: Compatibility — JS SDK
+description: ランタイム・チェーン・ツールチェーン。
+---
+
+# Compatibility
+
+## ランタイム
+
+- **JavaScript** または **TypeScript**
+- **viem** — SDK が直接依存（`package.json` のバージョンに合わせる）
+- **arktype** — 実行時検証（同上）
+
+## チェーン
+
+**Allowlist はありません。** ただし次が必要です。
+
+- クライアントに **`chain.id` が設定**されていること。
+- そのチェーンの **canonical TWC アドレス**にコントラクトコードがあること（`eth_getCode`）。
+
+チェーンの選び方・RPC はアプリ側の責務です。メンテナ向けのリリース注意は [Contributing: JS リリース](/contributing/sdk-js-release)。
+
+## EIP-712
+
+TWC コントラクトが **ERC-5267 の `eip712Domain()`** を実装していることが前提です。ゼロ `salt` の扱いは [EIP-712 domain とゼロ salt](/sdk-js/guides/eip712-domain-salt) を参照。
+
+## ビルドツール / TypeScript
+
+- ES Modules 前提（`"type": "module"` のプロジェクトが自然）
+- ツリーシェイクしやすいよう **サブパス import** に分割

@@ -1,0 +1,24 @@
+---
+title: Rust SDK リリースと公開手順
+description: eth-twc-sdk の crates.io 公開前に CREATE2 定数と整合を取る手順。
+---
+
+# `eth-twc-sdk` リリースと公開手順
+
+`eth-twc-sdk` を **このリポジトリでメンテし `crates.io` 等へ公開する担当者**向けです。利用者は [SDK (Rust)](/sdk-rust) のガイドを参照。
+
+## 方針
+
+- 通常リリースでは `transfer_with_commitment_address()` は **`COMPILE_TIME_TWC`**（CREATE2 決定論アドレス）を返します。バイトコード・コンストラクタ引数・salt・singleton factory を変えた場合は **`sdk_rust/src/config.rs`** を **`contracts/TWC_CREATE2.md` / JS SDK の定数**と同じ値に更新してください。
+- **`integration-test` feature** — 結合テスト用に `ETH_TWC_CONTRACT_ADDRESS` を参照。公開クレートの通常ビルドでは使わない。
+
+## 公開前チェックリスト
+
+1. `contracts/TWC_CREATE2.md` と `sdk_js/twcConstants.ts` / `sdk_rust/src/config.rs` のアドレス・salt が一致していること。
+2. `cargo test` / 必要なら `cargo test --features integration-test` 等（[結合テスト](/contributing/sdk-rust-integration-tests)）。
+3. `cargo publish` 前にバージョンと `Cargo.toml` のメタデータを確認。
+
+## 関連
+
+- [Rust SDK 内部 API](/contributing/sdk-rust-internals)
+- [JS SDK リリース](/contributing/sdk-js-release)

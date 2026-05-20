@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.13;
+pragma solidity ^0.8.22;
 
 /**
  * @notice This event is published when done the transfer correctfully

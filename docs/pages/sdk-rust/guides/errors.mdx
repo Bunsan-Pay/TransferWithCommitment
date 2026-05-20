@@ -1,0 +1,42 @@
+---
+title: エラーと切り分け — Rust SDK
+description: SdkError の典型例と確認手順。
+---
+
+# エラーと切り分け
+
+Rust クレートは多くの API で **`Result<T, SdkError>`** を返します。列挙子の一覧は **[SdkError](/sdk-rust/api/sdk-error)** を参照し、ここでは **よくある発生パターン**だけまとめます。意味の対応は [エラーと切り分け（JS SDK）](/sdk-js/guides/errors) の表と併読してください。
+
+## 設定・デプロイ
+
+| 症状（`SdkError`） | 確認 |
+| --- | --- |
+| `ContractNotConfigured` | `integration-test` で env 未設定など **ゼロアドレス**のまま呼んでいないか |
+| `ContractNotDeployed` | 接続チェーンに CREATE2 の **canonical TWC** がデプロイ済みか（`contracts/TWC_CREATE2.md`） |
+
+## 署名（`sign`）
+
+| 症状 | 確認 |
+| --- | --- |
+| `FromSignerMismatch` | `Signer::address` と EIP-712 の `from` が一致しているか |
+| `AuthorizerSignerMismatch` | 署名キーと `CancelAuthorization` の `authorizer` が一致しているか |
+| `InvalidValidTimeWindow` | `valid_after` / `valid_before` が `valid_after <= valid_before` になっているか（`None` は [`sign`](/sdk-rust/api/sign) で 0 / `U256::MAX` に解決） |
+| ドメイン関連 | `DomainChainIdMismatch` / `DomainVerifyingContractMismatch` — 署名時のチェーンと RPC、設定 TWC アドレスの取り違え |
+
+## 送信（`send_transaction`）
+
+| 症状 | 確認 |
+| --- | --- |
+| `EmptyTransferDetails` | Uni / バッチで明細配列が空（コントラクト呼び出し前に SDK が拒否） |
+| `Alloy(...)` | allowance、ガス、RPC、コントラクト revert など。メッセージ文字列を参照 |
+
+## 検証（`verify`）
+
+| 症状 | 確認 |
+| --- | --- |
+| `ReceiptNotFound` | トランザクションがまだマイニングされていない、またはハッシュの取り違え |
+| `EventNotFound` | レシートに `TransferWithCommitmentSent` があるが、**`VerifyArgs` の 5 フィールドすべて**と一致するログが 1 件もない |
+
+## RPC の前提
+
+検証は **RPC が返したレシート**に依存します。信頼できるエンドポイントと、十分なブロック確定を運用で確保してください（JS の [Off-chain verification の限界](/sdk-js/guides/verification-limits) と同様）。

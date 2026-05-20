@@ -7,7 +7,7 @@
         "driver": {
           "name": "Slither",
           "informationUri": "https://github.com/crytic/slither",
-          "version": "0.11.5",
+          "version": "0.11.3",
           "rules": [
             {
               "id": "0-0-arbitrary-send-erc20",
@@ -206,8 +206,8 @@
         {
           "ruleId": "3-0-solc-version",
           "message": {
-            "text": "Version constraint ^0.8.13 contains known severe issues (https://solidity.readthedocs.io/en/latest/bugs.html)\n\t- VerbatimInvalidDeduplication\n\t- FullInlinerNonExpressionSplitArgumentEvaluationOrder\n\t- MissingSideEffectsOnSelectorAccess\n\t- StorageWriteRemovalBeforeConditionalTermination\n\t- AbiReencodingHeadOverflowWithStaticArrayCleanup\n\t- DirtyBytesArrayToStorage\n\t- InlineAssemblyMemorySideEffects\n\t- DataLocationChangeInInternalOverride\n\t- NestedCalldataArrayAbiReencodingSizeValidation.\nIt is used by:\n\t- ^0.8.13 (src/Events.sol#2)\n\t- ^0.8.13 (src/ITransferWithCommitment.sol#2)\n\t- ^0.8.13 (src/SelfTransfer/ISelfTransfer.sol#2)\n\t- ^0.8.13 (src/SelfTransfer/SelfTransfer.sol#2)\n\t- ^0.8.13 (src/SignatureTransfer/Hash.sol#2)\n\t- ^0.8.13 (src/SignatureTransfer/ISignatureTransfer.sol#2)\n\t- ^0.8.13 (src/SignatureTransfer/SignatureTransfer.sol#2)\n\t- ^0.8.13 (src/State/IState.sol#2)\n\t- ^0.8.13 (src/State/State.sol#2)\n\t- ^0.8.13 (src/Structs.sol#2)\n\t- ^0.8.13 (src/TransferWithCommitment.sol#2)\n",
-            "markdown": "Version constraint ^0.8.13 contains known severe issues (https://solidity.readthedocs.io/en/latest/bugs.html)\n\t- VerbatimInvalidDeduplication\n\t- FullInlinerNonExpressionSplitArgumentEvaluationOrder\n\t- MissingSideEffectsOnSelectorAccess\n\t- StorageWriteRemovalBeforeConditionalTermination\n\t- AbiReencodingHeadOverflowWithStaticArrayCleanup\n\t- DirtyBytesArrayToStorage\n\t- InlineAssemblyMemorySideEffects\n\t- DataLocationChangeInInternalOverride\n\t- NestedCalldataArrayAbiReencodingSizeValidation.\nIt is used by:\n\t- [^0.8.13](src/Events.sol#L2)\n\t- [^0.8.13](src/ITransferWithCommitment.sol#L2)\n\t- [^0.8.13](src/SelfTransfer/ISelfTransfer.sol#L2)\n\t- [^0.8.13](src/SelfTransfer/SelfTransfer.sol#L2)\n\t- [^0.8.13](src/SignatureTransfer/Hash.sol#L2)\n\t- [^0.8.13](src/SignatureTransfer/ISignatureTransfer.sol#L2)\n\t- [^0.8.13](src/SignatureTransfer/SignatureTransfer.sol#L2)\n\t- [^0.8.13](src/State/IState.sol#L2)\n\t- [^0.8.13](src/State/State.sol#L2)\n\t- [^0.8.13](src/Structs.sol#L2)\n\t- [^0.8.13](src/TransferWithCommitment.sol#L2)\n"
+            "text": "Version constraint ^0.8.13 contains known severe issues (https://solidity.readthedocs.io/en/latest/bugs.html)\n\t- VerbatimInvalidDeduplication\n\t- FullInlinerNonExpressionSplitArgumentEvaluationOrder\n\t- MissingSideEffectsOnSelectorAccess\n\t- StorageWriteRemovalBeforeConditionalTermination\n\t- AbiReencodingHeadOverflowWithStaticArrayCleanup\n\t- DirtyBytesArrayToStorage\n\t- InlineAssemblyMemorySideEffects\n\t- DataLocationChangeInInternalOverride\n\t- NestedCalldataArrayAbiReencodingSizeValidation.\nIt is used by:\n\t- ^0.8.13 (src/Events.sol#2)\n\t- ^0.8.13 (src/ITransferWithCommitment.sol#2)\n\t- ^0.8.13 (src/SelfTransfer/ISelfTransfer.sol#2)\n\t- ^0.8.13 (src/SelfTransfer/SelfTransfer.sol#2)\n\t- ^0.8.13 (src/SignatureTransfer/Hash.sol#2)\n\t- ^0.8.13 (src/SignatureTransfer/ISignatureTransfer.sol#2)\n\t- ^0.8.13 (src/SignatureTransfer/SignatureTransfer.sol#2)\n\t- ^0.8.13 (src/State/IState.sol#2)\n\t- ^0.8.13 (src/State/State.sol#2)\n\t- ^0.8.13 (src/Structs.sol#2)\n\t- ^0.8.13 (src/TransferWithCommitment.sol#2)\n\t- ^0.8.13 (src/interfaces/ISingletonFactory.sol#2)\n",
+            "markdown": "Version constraint ^0.8.13 contains known severe issues (https://solidity.readthedocs.io/en/latest/bugs.html)\n\t- VerbatimInvalidDeduplication\n\t- FullInlinerNonExpressionSplitArgumentEvaluationOrder\n\t- MissingSideEffectsOnSelectorAccess\n\t- StorageWriteRemovalBeforeConditionalTermination\n\t- AbiReencodingHeadOverflowWithStaticArrayCleanup\n\t- DirtyBytesArrayToStorage\n\t- InlineAssemblyMemorySideEffects\n\t- DataLocationChangeInInternalOverride\n\t- NestedCalldataArrayAbiReencodingSizeValidation.\nIt is used by:\n\t- [^0.8.13](src/Events.sol#L2)\n\t- [^0.8.13](src/ITransferWithCommitment.sol#L2)\n\t- [^0.8.13](src/SelfTransfer/ISelfTransfer.sol#L2)\n\t- [^0.8.13](src/SelfTransfer/SelfTransfer.sol#L2)\n\t- [^0.8.13](src/SignatureTransfer/Hash.sol#L2)\n\t- [^0.8.13](src/SignatureTransfer/ISignatureTransfer.sol#L2)\n\t- [^0.8.13](src/SignatureTransfer/SignatureTransfer.sol#L2)\n\t- [^0.8.13](src/State/IState.sol#L2)\n\t- [^0.8.13](src/State/State.sol#L2)\n\t- [^0.8.13](src/Structs.sol#L2)\n\t- [^0.8.13](src/TransferWithCommitment.sol#L2)\n\t- [^0.8.13](src/interfaces/ISingletonFactory.sol#L2)\n"
           },
           "level": "warning",
           "locations": [
@@ -224,7 +224,7 @@
             }
           ],
           "partialFingerprints": {
-            "id": "c2008b30334cdc8546dc97f852f6513e6fc24c5fd162d1c2588fa6d46071235c"
+            "id": "3e7ef246771f89a6216ee89403ba0672cdbd2b18879789fb3e6a4999923f05ee"
           }
         },
         {
@@ -249,6 +249,30 @@
           ],
           "partialFingerprints": {
             "id": "a6bc3a8ad2674d0f8b265b5c40749f91cb58de4d2e15ff87bf859441e1a48912"
+          }
+        },
+        {
+          "ruleId": "3-0-naming-convention",
+          "message": {
+            "text": "Function ISignatureTransfer.CANCEL_AUTHORIZATION_TYPEHASH() (src/SignatureTransfer/ISignatureTransfer.sol#14) is not in mixedCase\n",
+            "markdown": "Function [ISignatureTransfer.CANCEL_AUTHORIZATION_TYPEHASH()](src/SignatureTransfer/ISignatureTransfer.sol#L14) is not in mixedCase\n"
+          },
+          "level": "warning",
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "src/SignatureTransfer/ISignatureTransfer.sol"
+                },
+                "region": {
+                  "startLine": 14,
+                  "endLine": 14
+                }
+              }
+            }
+          ],
+          "partialFingerprints": {
+            "id": "046504bb212716e5c4709fa3cdac3114277c4b162c996acabeb3d6497b5f69c0"
           }
         },
         {

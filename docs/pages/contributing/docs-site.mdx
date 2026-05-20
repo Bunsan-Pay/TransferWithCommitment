@@ -1,0 +1,55 @@
+---
+title: ドキュメントサイト
+description: Vocs による dev/build。出力先は docs/dist。
+---
+
+# ドキュメントサイト
+
+## ローカルプレビュー（クイックスタート）
+
+リポジトリルートで:
+
+```bash
+bun install
+bun run docs:dev
+```
+
+静的ビルドの成果物は `docs/dist/`（`bun run docs:build`）に出力されます。
+
+## GitHub Pages
+
+`main` への push で GitHub Actions（`.github/workflows/pages.yml`）が docs と demo をビルドし、1 サイトに公開します。
+
+| URL | 内容 |
+| --- | --- |
+| `https://bunsan-pay.github.io/TransferWithCommitment/` | ドキュメント（Vocs） |
+| `https://bunsan-pay.github.io/TransferWithCommitment/demo/` | Sepolia デモ |
+
+ローカルで同じ artifact を作る:
+
+```bash
+bun run pages:build
+# → _site/（docs ルート + demo/ サブパス）
+```
+
+リポジトリ設定: **Settings → Pages → Source: GitHub Actions**（初回のみ）。
+
+## 詳細
+
+リポジトリルート（`bun` が使える前提）:
+
+```bash
+bun run docs:dev
+bun run docs:build
+```
+
+- **開発中プレビュー** — `docs:dev`（ホットリロード）
+- **静的ビルド** — 成果物は `docs/dist/`
+
+設定ファイルは `docs/vocs.config.ts`（サイドバー・トップナビの正本）。
+
+**ビルドが Mermaid 用の Playwright で失敗する場合**（`playwright install` を求められる）: `docs/` で `bunx playwright install chromium` を実行するか、初回は `bun install` 後の `postinstall` に任せてください（`docs/package.json` の `playwright`）。
+
+## 関連
+
+- モノレポの CI: [CI と開発フロー](/contributing/monorepo-ci)

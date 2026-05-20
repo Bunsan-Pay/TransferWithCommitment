@@ -1,24 +1,16 @@
-import { arbitrum, mainnet, polygon, sepolia } from "viem/chains";
 import { TEST_VERIFIER_CONTRACT } from "./fixtures";
+import {
+  EIP712_DOMAIN_NAME,
+  EIP712_DOMAIN_VERSION,
+  TRANSFER_WITH_COMMITMENT_CREATE2_SALT,
+} from "../../twcConstants.ts";
 
-/** `mock.module` 向け。本番 `config.ts` と同じ assert ロジック */
+/** `mock.module` 向け。`transferWithCommitmentAddress` のみテスト用に差し替え */
 export function mockConfigModule() {
-  const ZERO_TRANSFER_ADDRESS =
-    "0x0000000000000000000000000000000000000000" as const;
-  const transferWithCommitmentAddress =
-    TEST_VERIFIER_CONTRACT as `0x${string}`;
   return {
-    ZERO_TRANSFER_ADDRESS,
-    transferWithCommitmentAddress,
-    supportedChains: [mainnet, sepolia, polygon, arbitrum],
-    assertTransferContractConfigured(): void {
-      if (
-        transferWithCommitmentAddress.toLowerCase() === ZERO_TRANSFER_ADDRESS
-      ) {
-        throw new Error(
-          "transferWithCommitmentAddress is not configured (zero address). Set it in config.ts or build-time replacement.",
-        );
-      }
-    },
+    EIP712_DOMAIN_NAME,
+    EIP712_DOMAIN_VERSION,
+    TRANSFER_WITH_COMMITMENT_CREATE2_SALT,
+    transferWithCommitmentAddress: TEST_VERIFIER_CONTRACT as `0x${string}`,
   };
 }

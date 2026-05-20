@@ -1,0 +1,20 @@
+---
+title: Off-chain verification の限界 — JS SDK
+description: verify が保証するもの・しないもの。
+---
+
+# Off-chain verification の限界
+
+`verify` が RPC から取得したレシートに基づき確認するのは次です。
+
+- トランザクションに **`TransferWithCommitmentSent` イベントが存在**し
+- **`args` で指定した indexed / non-indexed フィールド**と一致するログが
+- **インストールした SDK が想定する TWC コントラクト**から emit されていること
+
+**保証しません**:
+
+- RPC が正直であること（ログ改ざん）
+- ブロックが不可逆であること（リオーグ後にハッシュが別物になること）
+- 同一トランザクション内に、**同じ `from` / `to` / `token` / `value` / `commitment` をもつ `TransferWithCommitmentSent` が複数**ある場合、**どれが意図したイベントかを一意に決める**こと
+
+イベント列挙だけ欲しいときは `getTransferWithCommitmentSentEventLogs` — **args による内容フィルタは行いません**（[verify モジュール](/sdk-js/api/verify)）。

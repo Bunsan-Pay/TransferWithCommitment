@@ -1,0 +1,49 @@
+---
+title: SelfTransfer
+description: msg.sender による transfer オーバーロード。
+---
+
+# SelfTransfer
+
+`SelfTransfer.sol` は **`msg.sender` が送金者**となる `transfer` のオーバーロードを提供します。`State` と `ReentrancyGuard` を継承し、`Events` を使用します。
+
+## オーバーロード一覧（概念）
+
+| シグネチャの考え方 | 内容 |
+| --- | --- |
+| `transfer(token, to, value, commitment)` | 単一送金。内部で `_transferWithGuard` → `replayGuard(msg.sender, commitment)`。 |
+| `transfer(details[], commitment)` | **Uni**。`details.length > 0` が必須。同一 `commitment` で複数行。 |
+| `transfer(CommittedTransferDetail[])` | **バッチ**。各行に **行ごとの commitment**。`batchCommitment` は Self-Call には無い。 |
+
+## 共通のオンチェーン前提
+
+- **`nonReentrant`**
+- 送金には **`IERC20.allowance(msg.sender, this) >= value`**（足りなければ `AllowanceNotEnough`）
+- 実送金は **`safeTransferFrom`** 想定
+
+全関数の引数・戻り値・前提条件・事後条件は [Reference: SelfTransfer](/contracts/reference/self-transfer) を参照。
+
+## Forge テストで見る最小例
+
+リポジトリ内 `contracts/test/SelfTransfer/SelfTransfer.t.sol` — 単一送金の成功パス（抜粋）:
+
+```solidity
+function test_transfer_single_emitsAndTransfers() public {
+    bytes32 c = keccak256("c0");
+    uint256 amount = 10 ether;
+    vm.expectEmit(true, true, true, true);
+    emit TransferWithCommitmentSent(user, recipient, address(token), amount, c);
+    vm.prank(user);
+    twc.transfer(address(token), recipient, amount, c);
+    assertEq(token.balanceOf(recipient), amount);
+}
+```
+
+このテストは次の流れで検証しています。
+
+1. `keccak256("c0")` で commitment を生成する
+2. `vm.expectEmit` で次のトランザクションが `TransferWithCommitmentSent` イベントを発行することを期待する
+3. `vm.prank(user)` で送金者を設定し `twc.transfer(...)` を呼び出す
+4. `assertEq` で受取人の残高が送金額と一致することを確認する
+
+同一 `commitment` の二重使用は `replayGuard` により revert します（`test_transfer_single_revertsOnReplay` 参照）。

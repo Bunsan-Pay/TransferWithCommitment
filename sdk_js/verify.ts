@@ -1,14 +1,12 @@
 import { type } from "arktype";
 import { parseEventLogs, type Hex, type PublicClient } from "viem";
-import {
-  assertTransferContractConfigured,
-  transferWithCommitmentAddress,
-} from "./config";
+import { transferWithCommitmentAbi } from "./abi";
+import { transferWithCommitmentAddress } from "./config";
 import { address, bytes32, uint256 } from "./types/utils";
-import { transferWithCommitmentAbi } from "./types/abi";
-import { isSupportedChain } from "./utils";
+import { assertTransferContractDeployed } from "./utils";
 
-const verifyArgs = type({
+/** `verify` 第 3 引数スキーマ（単一転送イベント形） */
+export const verifyArgsSchema = type({
   from: address,
   token: address,
   to: address,
@@ -16,16 +14,13 @@ const verifyArgs = type({
   commitment: bytes32,
 });
 
-type VerifyArgs = typeof verifyArgs.infer;
+export type VerifyArgs = typeof verifyArgsSchema.infer;
 
 export const getTransferWithCommitmentSentEventLogs = async (
   publicClient: PublicClient,
   hash: Hex,
 ) => {
-  assertTransferContractConfigured();
-  if (!isSupportedChain(publicClient)) {
-    throw new Error("Unsupported chain: " + publicClient.chain?.name);
-  }
+  await assertTransferContractDeployed(publicClient);
   const receipt = await publicClient.getTransactionReceipt({ hash });
   const logs = parseEventLogs({
     abi: transferWithCommitmentAbi,
@@ -43,11 +38,8 @@ export const verify = async (
   hash: Hex,
   args: VerifyArgs,
 ): Promise<void> => {
-  verifyArgs.assert(args);
-  assertTransferContractConfigured();
-  if (!isSupportedChain(publicClient)) {
-    throw new Error("Unsupported chain: " + publicClient.chain?.name);
-  }
+  verifyArgsSchema.assert(args);
+  await assertTransferContractDeployed(publicClient);
   const receipt = await publicClient.getTransactionReceipt({ hash });
   const logs = parseEventLogs({
     abi: transferWithCommitmentAbi,

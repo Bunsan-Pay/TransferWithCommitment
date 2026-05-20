@@ -1,0 +1,125 @@
+---
+title: フック完全リファレンス — React SDK
+description: 各フックの引数・戻り値・内部挙動・queryKey。
+---
+
+# フック完全リファレンス
+
+すべて **`@tanstack/react-query`** の `useMutation` / `useQuery` の結果を **そのまま返します**（`data`, `error`, `isPending`, `isSuccess`, `refetch` 等）。以下では **このライブラリ固有**の部分だけを詳述します。
+
+**章の並び** — 利用者向け: **Self-Call 系** → **署名系** → **Executor 送信系** → **検証・ログ** → **チェーン** → 実装参照用の **`narrowWriteClients`（内部）**。
+
+---
+
+## Self-Call 系
+
+### `useSelfTransfer(options?)`
+
+- **取得**: `usePublicClient()`, `useWalletClient().data`, `useConnection().address`
+- **mutationFn**: `sendTx(pc, wc, addr, args)` — `eth-twc-sdk-js/selfTransfer/single`
+- **引数型**: `SelfTransferSingleArgs`
+- **戻り値 `data`**: `Hex`
+
+### `useSelfUnifiedTransfer(options?)`
+
+- **mutationFn**: `sendTx(...)` — `eth-twc-sdk-js/selfTransfer/unified`
+- **引数型**: `SelfTransferUnifiedArgs`
+
+### `useSelfBatchTransfer(options?)`
+
+- **mutationFn**: `sendTx(...)` — `eth-twc-sdk-js/selfTransfer/batch`
+- **引数型**: `SelfTransferBatchArgs`
+
+---
+
+## 署名系
+
+### `useSignSingleTransfer` / `useSignUniCommitTransfers` / `useSignBatchTransferWithCommit` / `useSignCancelAuthorization`
+
+- **mutationFn**: 対応する `sign`（`eth-twc-sdk-js/signatureTransfer/<variant>`）
+- **引数型**: 各 variant の `SignatureTransfer*` / `CancelAuthorizationArgs`
+- **戻り値 `data`**: 対応する `Signed*`
+
+`account` 引数には **常に `useConnection().address`** が使われます。メッセージの `from` とウォレットが違うと JS SDK が例外を投げます。
+
+---
+
+## Executor 送信系
+
+### `useSendAuthorized*`
+
+- **引数 `signed`**: 対応する `Signed*` 型
+- **mutationFn**: `sendTx(pc, wc, addr, signed)` — `eth-twc-sdk-js/signatureTransfer/<variant>`
+- **`addr`**: **現在接続中のウォレットアドレス**（`useConnection().address`）。Executor を送るときはこのアドレスが EIP-712 の `executor` と一致している必要がある
+
+### `useSendCancelAuthorization`
+
+- **mutationFn**: `sendTx(...)` — `eth-twc-sdk-js/signatureTransfer/cancelAuthorization`
+
+---
+
+## `useVerifyTransfer(txHash, args, options?)`
+
+実装: `sdk_react/hooks/verify.ts`
+
+**queryKey**:
+
+```text
+["twc", "verify", txHash ?? null, args?.from ?? null, args?.token ?? null,
+ args?.to ?? null, valueKey, args?.commitment ?? null]
+```
+
+`valueKey` は `args.value.toString()`（`args` が無いときは `null`）。`verify` 第 3 引数のフィールド順に並べただけで、JSON や任意キーの列挙はしません。`args` の内容が変わると **別クエリ**として再フェッチされます。
+
+**queryFn**:
+
+- `publicClient` なし → `"TWC: public client is not available"`
+- `txHash` なし → `"TWC: tx hash is required"`
+- `args` なし → `"TWC: verify args are required"`
+- それ以外 → `verify(publicClient, txHash, args)` 後に `null`
+
+**`enabled`**: `Boolean(publicClient && txHash && args) && (options.enabled ?? true)`
+
+**成功時 `data`**: `null`（検証成功の判定は `isSuccess` を使います）。
+
+---
+
+## `useTransferWithCommitmentSentLogs(txHash, options?)`
+
+**queryKey**: `["twc", "transferWithCommitmentSent", txHash ?? null]`
+
+**queryFn**: `getTransferWithCommitmentSentEventLogs` — `txHash` または `publicClient` が欠けるとエラーメッセージを throw。
+
+**`enabled`**: `Boolean(publicClient && txHash) && (options.enabled ?? true)`
+
+**成功時 `data`**: `Log[]`
+
+---
+
+## `useIsTransferWithCommitmentDeployed()`
+
+`useQuery` で `publicClient.getCode({ address: transferWithCommitmentAddress })` を評価し、**コードが空でない**ときだけ `true`。**クライアント未取得・読み込み中は `false`**。
+
+**非推奨エイリアス**: `useIsSupportedChain`（同じ実装）。
+
+---
+
+## `narrowWriteClients`（内部）
+
+実装: `sdk_react/hooks/clients.ts`
+
+```typescript
+export function narrowWriteClients(
+  publicClient: PublicClient | undefined,
+  walletClient: WalletClient | undefined,
+  address: Hex | undefined,
+): [PublicClient, WalletClient, Hex]
+```
+
+**必ず成功するか、次のいずれかを throw**:
+
+- `"TWC: public client is not available"`
+- `"TWC: wallet client is not available"`
+- `"TWC: connect a wallet to send or sign"`
+
+送金・署名の各ミューテーションは **mutation 実行時**にこれを通します。

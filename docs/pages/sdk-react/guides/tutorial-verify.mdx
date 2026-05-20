@@ -1,0 +1,70 @@
+---
+title: "Tutorial: レシート検証（verify）— React SDK"
+description: useVerifyTransfer でマイニング後の tx と期待パラメータを照合する（Self-Call / EIP-712+Executor 共通）。
+---
+
+# Tutorial: レシート検証（verify）
+
+**Self-Call** でも **EIP-712 + Executor** でも、マイニング後の検証は **`useVerifyTransfer`**（内部で JS SDK の `verify`）で同じように行えます。wagmi の `publicClient` が **canonical TWC をデプロイしたチェーン**に接続され、期待パラメータが揃っていることが前提です。
+
+送金・署名の手順は [Tutorial: Self-Call](/sdk-react/guides/tutorial-self-call) または [Tutorial: EIP-712 + Executor](/sdk-react/guides/tutorial-signature-executor) を参照してください。ミューテーション・クエリの前提は [narrowWriteClients とよくある失敗](/sdk-react/api/clients-errors) も参照してください。
+
+## レシートを verify で照合する
+
+```tsx
+import { useVerifyTransfer } from "eth-twc-sdk-react";
+import type { Hex } from "viem";
+
+export function VerifyBlock({
+  txHash,
+  from,
+  to,
+  token,
+  value,
+  commitment,
+}: {
+  txHash: Hex | undefined;
+  from: Hex;
+  to: Hex;
+  token: Hex;
+  value: bigint;
+  commitment: Hex;
+}) {
+  const args =
+    txHash === undefined
+      ? undefined
+      : { from, to, token, value, commitment };
+
+  const q = useVerifyTransfer(txHash, args);
+
+  if (!txHash || !args) return <p>Tx または引数が未設定</p>;
+  if (q.isPending) return <p>検証中…</p>;
+  if (q.isError) return <p>失敗: {q.error.message}</p>;
+  if (q.isSuccess) return <p>検証 OK</p>;
+  return null;
+}
+```
+
+- **`txHash` または `args` が `undefined` のとき、クエリは `enabled: false`**（自動実行しません）。
+- 成功時の **`data` は `null`**。通常は `isSuccess` / `isError` で判定してください。
+
+成功時の挙動の詳細は [JS の `verify` API](/sdk-js/api/verify) と同じです（レシートに `TransferWithCommitmentSent` が無いと失敗）。
+
+## （任意）イベントだけ列挙
+
+```tsx
+import { useTransferWithCommitmentSentLogs } from "eth-twc-sdk-react";
+import type { Hex } from "viem";
+
+export function LogsBlock({ txHash }: { txHash: Hex | undefined }) {
+  const q = useTransferWithCommitmentSentLogs(txHash);
+
+  if (!txHash) return <p>Tx 未設定</p>;
+  if (q.isPending) return <p>取得中…</p>;
+  if (q.isError) return <p>失敗: {q.error.message}</p>;
+  if (q.isSuccess) return <pre>{JSON.stringify(q.data, null, 2)}</pre>;
+  return null;
+}
+```
+
+`txHash` が無いと **`enabled: false`**。戻り値は viem の **`Log[]`** です。パラメータ照合は自分で行うか `useVerifyTransfer` を使ってください。

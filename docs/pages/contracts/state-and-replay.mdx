@@ -1,0 +1,28 @@
+---
+title: State とリプレイ防止
+description: commitment の消費と replayGuard。
+---
+
+# State とリプレイ防止
+
+## データ構造
+
+- **`_commitmentStates`** — openzeppelin `BitMap` を用い、**ペア `(payer, commitment)`** が使用済みかをビットで保持します。
+- **`commitmentState(payer, commitment)`** — `view` で、そのビットが立っているかを返します。
+
+## `replayGuard(from, commitment)` 修飾子
+
+修飾された関数の**本体に入る前**に、当該 `(from, commitment)` が **未使用**であることを要求します。成功パスでは **`commitmentUsed`** によりビットを立て、**`CommitmentUsed`** イベントを emit します。
+
+**委任経路**では `replayGuard` → **`SignatureChecker.isValidSignatureNow`** → 送金、の順です。ERC-1271 スマートコントラクトウォレットの実装次第では、同一トランザクション内で `commitmentState` を先に読んで **未使用**と判定した直後に `commitmentUsed` で消費される、といった**観測順序**の差が生じます。署名検証やテストのモックの組み方によっては一見矛盾するように見える場合があります。意図した動作の詳細は `contracts/SPEC.md` の **ERC-1271 経路の呼び出し順** 節の前提に従います（典型的な EOA 送金パスではこの違和感は出にくいです）。
+
+## Uni / バッチでの違い（要点）
+
+- **Uni（`TransferDetail[]` + 共有 commitment）** — 外側で **`replayGuard(from, commitment)`**（共有 commitment 1 回）。
+- **バッチ（`CommittedTransferDetail[]` + `batchCommitment`）** — 署名メッセージに **`batchCommitment`** が含まれ、先に **`replayGuard(from, batchCommitment)`**、各明細では **`_transferWithGuard`** 経由で **行ごとの commitment** も消費。
+
+Self-Call の `transfer(CommittedTransferDetail[])` に **`batchCommitment` は無く**、明細ごとの `replayGuard` のみ、という整理です（`SPEC.md` と同じ）。
+
+---
+
+> 全関数・modifier の引数・前提条件・事後条件の詳細は [Reference: State](/contracts/reference/state) を参照。

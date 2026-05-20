@@ -63,6 +63,16 @@ $ anvil
 
 ### Deploy
 
+**Production-style (deterministic address):** use the EIP-2470 Singleton Factory (CREATE2). The expected address and frozen parameters are documented in [`TWC_CREATE2.md`](./TWC_CREATE2.md).
+
+```shell
+$ forge script script/TransferWithCommitmentCreate2.s.sol:TransferWithCommitmentCreate2Script --broadcast --rpc-url <rpc url> --private-key <your_private_key>
+```
+
+Optional env vars (see script comments): `CREATE2_SALT`, `EIP712_NAME`, `EIP712_VERSION`. Defaults must match SDKs and any off-chain EIP-712 signers.
+
+**Local / non-deterministic:** standard create (address varies by deployer nonce):
+
 ```shell
 $ forge script script/TransferWithCommitment.s.sol:TransferWithCommitmentScript --broadcast --rpc-url <chain name or rpc url> --private-key <your_private_key>
 ```

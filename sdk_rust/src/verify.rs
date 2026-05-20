@@ -9,7 +9,7 @@ use alloy::sol_types::SolEvent;
 use crate::config::{self, assert_transfer_contract_configured};
 use crate::error::SdkError;
 use crate::events::TransferWithCommitmentSent;
-use crate::utils::is_supported_chain_id;
+use crate::utils::assert_transfer_contract_deployed;
 
 /// [`verify`] に渡す、イベント内容との照合に使うフィールド集合。
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -32,7 +32,7 @@ pub struct VerifyArgs {
 ///
 /// # 引数
 ///
-/// * `public_provider` — レシート取得に使用するプロバイダ（チェーン ID が対応リストに含まれること）。
+/// * `public_provider` — レシート取得に使用するプロバイダ。
 /// * `hash` — 対象トランザクションのハッシュ。
 ///
 /// # 戻り値
@@ -42,7 +42,7 @@ pub struct VerifyArgs {
 /// # エラー
 ///
 /// - [`crate::SdkError::ContractNotConfigured`]
-/// - [`crate::SdkError::UnsupportedChain`]
+/// - [`crate::SdkError::ContractNotDeployed`]
 /// - [`crate::SdkError::ReceiptNotFound`]
 /// - RPC エラー（[`crate::SdkError::Alloy`] など）
 pub async fn get_transfer_with_commitment_sent_event_logs<P: Provider>(
@@ -50,10 +50,7 @@ pub async fn get_transfer_with_commitment_sent_event_logs<P: Provider>(
     hash: TxHash,
 ) -> Result<Vec<TransferWithCommitmentSent>, SdkError> {
     assert_transfer_contract_configured()?;
-    let chain_id = public_provider.get_chain_id().await?;
-    if !is_supported_chain_id(chain_id) {
-        return Err(SdkError::UnsupportedChain(chain_id));
-    }
+    assert_transfer_contract_deployed(public_provider).await?;
     let receipt = public_provider
         .get_transaction_receipt(hash)
         .await?
@@ -85,7 +82,7 @@ pub async fn get_transfer_with_commitment_sent_event_logs<P: Provider>(
 /// # エラー
 ///
 /// - [`crate::SdkError::ContractNotConfigured`]
-/// - [`crate::SdkError::UnsupportedChain`]
+/// - [`crate::SdkError::ContractNotDeployed`]
 /// - [`crate::SdkError::ReceiptNotFound`]
 /// - [`crate::SdkError::EventNotFound`] — 一致するログが 0 件
 /// - RPC エラー
@@ -95,10 +92,7 @@ pub async fn verify<P: Provider>(
     args: &VerifyArgs,
 ) -> Result<(), SdkError> {
     assert_transfer_contract_configured()?;
-    let chain_id = public_provider.get_chain_id().await?;
-    if !is_supported_chain_id(chain_id) {
-        return Err(SdkError::UnsupportedChain(chain_id));
-    }
+    assert_transfer_contract_deployed(public_provider).await?;
     let receipt = public_provider
         .get_transaction_receipt(hash)
         .await?
@@ -127,8 +121,36 @@ pub async fn verify<P: Provider>(
 mod tests {
     use alloy::primitives::{address, B256, TxHash, U256};
     use alloy::providers::ProviderBuilder;
+    use serde_json::json;
+    use wiremock::{matchers::method, Mock, MockServer, ResponseTemplate};
 
     use super::{get_transfer_with_commitment_sent_event_logs, verify, VerifyArgs};
+
+    async fn mock_rpc_chain_and_code(chain_id_hex: &str, code: &str) -> MockServer {
+        let server = MockServer::start().await;
+        let cid = chain_id_hex.to_string();
+        let code = code.to_string();
+        Mock::given(method("POST"))
+            .respond_with(move |req: &wiremock::Request| {
+                let body: serde_json::Value =
+                    serde_json::from_slice(&req.body).unwrap_or(json!({}));
+                let id = body.get("id").cloned().unwrap_or(json!(1));
+                let m = body.get("method").and_then(|x| x.as_str()).unwrap_or("");
+                let result = match m {
+                    "eth_chainId" => json!(cid.clone()),
+                    "eth_getCode" => json!(code.clone()),
+                    _ => json!(null),
+                };
+                ResponseTemplate::new(200).set_body_json(json!({
+                    "jsonrpc": "2.0",
+                    "id": id,
+                    "result": result
+                }))
+            })
+            .mount(&server)
+            .await;
+        server
+    }
 
     fn sample_verify_args() -> VerifyArgs {
         let a = address!("0x1111111111111111111111111111111111111111");
@@ -142,19 +164,27 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn get_logs_fails_when_contract_not_configured() {
-        let provider = ProviderBuilder::new().connect_http("http://127.0.0.1:65533".parse().unwrap());
+    async fn get_logs_fails_when_twc_not_deployed() {
+        let server = mock_rpc_chain_and_code("0x1", "0x").await;
+        let provider = ProviderBuilder::new().connect_http(server.uri().parse().unwrap());
         let hash = TxHash::repeat_byte(0xab);
         let r = get_transfer_with_commitment_sent_event_logs(&provider, hash).await;
-        assert!(matches!(r, Err(crate::SdkError::ContractNotConfigured)));
+        assert!(matches!(
+            r,
+            Err(crate::SdkError::ContractNotDeployed { .. })
+        ));
     }
 
     #[tokio::test]
-    async fn verify_fails_when_contract_not_configured() {
-        let provider = ProviderBuilder::new().connect_http("http://127.0.0.1:65532".parse().unwrap());
+    async fn verify_fails_when_twc_not_deployed() {
+        let server = mock_rpc_chain_and_code("0x1", "0x").await;
+        let provider = ProviderBuilder::new().connect_http(server.uri().parse().unwrap());
         let hash = TxHash::repeat_byte(0xab);
         let args = sample_verify_args();
         let r = verify(&provider, hash, &args).await;
-        assert!(matches!(r, Err(crate::SdkError::ContractNotConfigured)));
+        assert!(matches!(
+            r,
+            Err(crate::SdkError::ContractNotDeployed { .. })
+        ));
     }
 }

@@ -1,13 +1,14 @@
 "use client";
 
 import { useMutation, type UseMutationOptions } from "@tanstack/react-query";
-import * as signatureTransfer from "eth-twc-sdk-js/sendTransaction/signatureTransfer";
-import type {
-  SignedBatchTransferWithCommit,
-  SignedCancelAuthorization,
-  SignedTransferWithCommit,
-  SignedUniCommitTransfers,
-} from "eth-twc-sdk-js/types/signedData";
+import type { SignedBatchTransfer } from "eth-twc-sdk-js/signatureTransfer/batch";
+import type { SignedCancelAuthorization } from "eth-twc-sdk-js/signatureTransfer/cancelAuthorization";
+import type { SignedSingleTransfer } from "eth-twc-sdk-js/signatureTransfer/single";
+import type { SignedUnifiedTransfer } from "eth-twc-sdk-js/signatureTransfer/unified";
+import { sendTx as sendAuthorizedBatch } from "eth-twc-sdk-js/signatureTransfer/batch";
+import { sendTx as sendCancelAuthorization } from "eth-twc-sdk-js/signatureTransfer/cancelAuthorization";
+import { sendTx as sendAuthorizedSingle } from "eth-twc-sdk-js/signatureTransfer/single";
+import { sendTx as sendAuthorizedUnified } from "eth-twc-sdk-js/signatureTransfer/unified";
 import type { Hex } from "viem";
 import { useConnection, usePublicClient, useWalletClient } from "wagmi";
 
@@ -15,7 +16,7 @@ import { narrowWriteClients } from "./clients.ts";
 
 export function useSendAuthorizedSingleTransfer(
   options?: Omit<
-    UseMutationOptions<Hex, Error, SignedTransferWithCommit>,
+    UseMutationOptions<Hex, Error, SignedSingleTransfer>,
     "mutationFn"
   >,
 ) {
@@ -25,20 +26,20 @@ export function useSendAuthorizedSingleTransfer(
 
   return useMutation({
     ...options,
-    mutationFn: async (signed: SignedTransferWithCommit) => {
+    mutationFn: async (signed: SignedSingleTransfer) => {
       const [pc, wc, addr] = narrowWriteClients(
         publicClient,
         walletClient,
         address,
       );
-      return signatureTransfer.singleTransfer(pc, wc, addr, signed);
+      return sendAuthorizedSingle(pc, wc, addr, signed);
     },
   });
 }
 
 export function useSendAuthorizedUnifiedTransfer(
   options?: Omit<
-    UseMutationOptions<Hex, Error, SignedUniCommitTransfers>,
+    UseMutationOptions<Hex, Error, SignedUnifiedTransfer>,
     "mutationFn"
   >,
 ) {
@@ -48,20 +49,23 @@ export function useSendAuthorizedUnifiedTransfer(
 
   return useMutation({
     ...options,
-    mutationFn: async (signed: SignedUniCommitTransfers) => {
+    mutationFn: async (signed: SignedUnifiedTransfer) => {
       const [pc, wc, addr] = narrowWriteClients(
         publicClient,
         walletClient,
         address,
       );
-      return signatureTransfer.unifiedTransfer(pc, wc, addr, signed);
+      return sendAuthorizedUnified(pc, wc, addr, signed);
     },
   });
 }
 
+export const useSendAuthorizedUniCommitTransfers =
+  useSendAuthorizedUnifiedTransfer;
+
 export function useSendAuthorizedBatchTransfer(
   options?: Omit<
-    UseMutationOptions<Hex, Error, SignedBatchTransferWithCommit>,
+    UseMutationOptions<Hex, Error, SignedBatchTransfer>,
     "mutationFn"
   >,
 ) {
@@ -71,13 +75,13 @@ export function useSendAuthorizedBatchTransfer(
 
   return useMutation({
     ...options,
-    mutationFn: async (signed: SignedBatchTransferWithCommit) => {
+    mutationFn: async (signed: SignedBatchTransfer) => {
       const [pc, wc, addr] = narrowWriteClients(
         publicClient,
         walletClient,
         address,
       );
-      return signatureTransfer.batchTransfer(pc, wc, addr, signed);
+      return sendAuthorizedBatch(pc, wc, addr, signed);
     },
   });
 }
@@ -100,7 +104,7 @@ export function useSendCancelAuthorization(
         walletClient,
         address,
       );
-      return signatureTransfer.cancelAuthorization(pc, wc, addr, signed);
+      return sendCancelAuthorization(pc, wc, addr, signed);
     },
   });
 }

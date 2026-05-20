@@ -1,0 +1,24 @@
+---
+title: Installation — Rust SDK
+description: Cargo 依存の書き方。
+---
+
+# Installation
+
+```toml
+[dependencies]
+eth-twc-sdk = "0.1.0"  # 公開時。パス依存なら path = "../sdk_rust"
+alloy = { version = "1.8", features = ["provider-http", "signer-local", "contract", "sol-types", "rpc-types-eth", "network", "rpc"] }
+tokio = { version = "1", features = ["macros", "rt-multi-thread"] }
+```
+
+`async-trait` や `thiserror` は `eth-twc-sdk` の内部依存として自動的に解決されるため、利用者側での明示的な追加は不要です。
+
+実際の feature フラグは **`sdk_rust/Cargo.toml`** が正本です。
+
+## 互換性
+
+- **Rust Edition 2021**
+- **Tokio** — 署名・送信・検証がすべて `.await` 前提（同期 API は提供しない）
+- **Alloy 1.8**（`Cargo.toml` の feature フラグに従う）
+- **例示チェーン ID** — [utils](/sdk-rust/api/utils#example-chain-ids)（allowlist ではありません。特別なビルドは [feature フラグ](/contributing/sdk-rust-feature-flags)）

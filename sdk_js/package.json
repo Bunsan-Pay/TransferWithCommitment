@@ -32,15 +32,15 @@
     "viem": "^2.47.6"
   },
   "exports": {
+    "./abi": {
+      "types": "./dist/abi.d.ts",
+      "import": "./dist/abi.js",
+      "require": "./dist/abi.cjs"
+    },
     "./config": {
       "types": "./dist/config.d.ts",
       "import": "./dist/config.js",
       "require": "./dist/config.cjs"
-    },
-    "./sign": {
-      "types": "./dist/sign.d.ts",
-      "import": "./dist/sign.js",
-      "require": "./dist/sign.cjs"
     },
     "./verify": {
       "types": "./dist/verify.d.ts",
@@ -52,50 +52,50 @@
       "import": "./dist/utils.js",
       "require": "./dist/utils.cjs"
     },
-    "./sendTransaction/selfTransfer": {
-      "types": "./dist/sendTransaction/selfTransfer.d.ts",
-      "import": "./dist/sendTransaction/selfTransfer.js",
-      "require": "./dist/sendTransaction/selfTransfer.cjs"
-    },
-    "./sendTransaction/signatureTransfer": {
-      "types": "./dist/sendTransaction/signatureTransfer.d.ts",
-      "import": "./dist/sendTransaction/signatureTransfer.js",
-      "require": "./dist/sendTransaction/signatureTransfer.cjs"
-    },
-    "./types/abi": {
-      "types": "./dist/types/abi.d.ts",
-      "import": "./dist/types/abi.js",
-      "require": "./dist/types/abi.cjs"
-    },
-    "./types/Eip712Type": {
-      "types": "./dist/types/Eip712Type.d.ts",
-      "import": "./dist/types/Eip712Type.js",
-      "require": "./dist/types/Eip712Type.cjs"
+    "./types/utils": {
+      "types": "./dist/types/utils.d.ts",
+      "import": "./dist/types/utils.js",
+      "require": "./dist/types/utils.cjs"
     },
     "./types/transferDetail": {
       "types": "./dist/types/transferDetail.d.ts",
       "import": "./dist/types/transferDetail.js",
       "require": "./dist/types/transferDetail.cjs"
     },
-    "./types/signedData": {
-      "types": "./dist/types/signedData.d.ts",
-      "import": "./dist/types/signedData.js",
-      "require": "./dist/types/signedData.cjs"
+    "./selfTransfer/single": {
+      "types": "./dist/selfTransfer/single/index.d.ts",
+      "import": "./dist/selfTransfer/single/index.js",
+      "require": "./dist/selfTransfer/single/index.cjs"
     },
-    "./types/utils": {
-      "types": "./dist/types/utils.d.ts",
-      "import": "./dist/types/utils.js",
-      "require": "./dist/types/utils.cjs"
+    "./selfTransfer/batch": {
+      "types": "./dist/selfTransfer/batch/index.d.ts",
+      "import": "./dist/selfTransfer/batch/index.js",
+      "require": "./dist/selfTransfer/batch/index.cjs"
     },
-    "./types/args/signatureTransfer": {
-      "types": "./dist/types/args/signatureTransfer.d.ts",
-      "import": "./dist/types/args/signatureTransfer.js",
-      "require": "./dist/types/args/signatureTransfer.cjs"
+    "./selfTransfer/unified": {
+      "types": "./dist/selfTransfer/unified/index.d.ts",
+      "import": "./dist/selfTransfer/unified/index.js",
+      "require": "./dist/selfTransfer/unified/index.cjs"
     },
-    "./types/args/selfTransfer": {
-      "types": "./dist/types/args/selfTransfer.d.ts",
-      "import": "./dist/types/args/selfTransfer.js",
-      "require": "./dist/types/args/selfTransfer.cjs"
+    "./signatureTransfer/single": {
+      "types": "./dist/signatureTransfer/single/index.d.ts",
+      "import": "./dist/signatureTransfer/single/index.js",
+      "require": "./dist/signatureTransfer/single/index.cjs"
+    },
+    "./signatureTransfer/batch": {
+      "types": "./dist/signatureTransfer/batch/index.d.ts",
+      "import": "./dist/signatureTransfer/batch/index.js",
+      "require": "./dist/signatureTransfer/batch/index.cjs"
+    },
+    "./signatureTransfer/unified": {
+      "types": "./dist/signatureTransfer/unified/index.d.ts",
+      "import": "./dist/signatureTransfer/unified/index.js",
+      "require": "./dist/signatureTransfer/unified/index.cjs"
+    },
+    "./signatureTransfer/cancelAuthorization": {
+      "types": "./dist/signatureTransfer/cancelAuthorization/index.d.ts",
+      "import": "./dist/signatureTransfer/cancelAuthorization/index.js",
+      "require": "./dist/signatureTransfer/cancelAuthorization/index.cjs"
     }
   }
 }

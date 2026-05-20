@@ -1,0 +1,22 @@
+---
+title: オフチェーン検証の限界 — Rust SDK
+description: verify が保証するもの・しないもの。
+---
+
+# オフチェーン検証の限界
+
+`verify` が RPC から取得したレシートに基づき確認するのは次の 3 点です。
+
+- トランザクションに **`TransferWithCommitmentSent` イベントが存在**する
+- **`VerifyArgs` で指定した 5 フィールド**（`from`, `token`, `to`, `value`, `commitment`）と一致するログがある
+- そのログが **ビルドに設定された TWC コントラクト**から emit されている
+
+**保証しない点**:
+
+- RPC が正直であること（ログ改ざんの検出は SDK の外）
+- ブロックがファイナライズ済みであること（リオーグ後にハッシュが無効になる可能性）
+- 同一 Tx 内に同じパラメータの `TransferWithCommitmentSent` が複数ある場合、どれが意図したイベントかを一意に決めること
+
+イベント列挙だけ行いたい場合は `get_transfer_with_commitment_sent_event_logs` を使用してください（パラメータによるフィルタは行いません — [verify API](/sdk-rust/api/verify)）。
+
+JS SDK における同趣旨の解説は [Off-chain verification の限界（JS）](/sdk-js/guides/verification-limits) を参照してください。

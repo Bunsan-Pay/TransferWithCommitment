@@ -1,0 +1,136 @@
+---
+title: "Tutorial: Self-Call（エンドツーエンド）— Rust SDK"
+description: Provider 作成から transfer まで、具体的なコードで追う（検証は verify チュートリアルへ）。
+---
+
+# Tutorial: Self-Call
+
+この章では **送金者が自分で `transfer` を送る経路**だけを、手順付きで実装します。前提として次を満たしてください。
+
+- [ ] ビルド済みクレートが指す TWC デプロイ先と、接続先チェーンが整合している（リポジトリ内の詳細は [feature フラグ](/contributing/sdk-rust-feature-flags)）
+- [ ] HTTP RPC が意図したチェーンに繋がっており、そのチェーンに **canonical TWC** がデプロイ済みである（`utils::assert_provider_supported_chain` 等）
+- [ ] 送金元 `from` が、送金する **ERC-20** について TWC へ **`approve` 済み**である
+
+## Step 1 — 依存（`Cargo.toml`）と Provider
+
+```toml
+[dependencies]
+eth-twc-sdk = { path = "../sdk_rust" }  # 例
+alloy = { version = "1.8", features = ["provider-http", "signer-local", "contract", "sol-types", "rpc-types-eth", "network", "rpc"] }
+tokio = { version = "1", features = ["macros", "rt-multi-thread"] }
+rand = "0.8"
+```
+
+`self_transfer::transfer` は内部で **`.from(from).send()`** まで行うため、送金者 `from` に対応する鍵を保持した `Provider` が必要です。HTTP の読み取り専用プロバイダだけでは、多くの環境で送信に失敗します。
+
+`ProviderBuilder` に **`EthereumWallet`（`PrivateKeySigner` 由来）** を紐づけて HTTP に接続する最小例です。RPC URL は環境に合わせて書き換えてください。
+
+```rust
+use alloy::network::EthereumWallet;
+use alloy::primitives::address;
+use alloy::providers::ProviderBuilder;
+use alloy::signers::local::PrivateKeySigner;
+
+let pk: PrivateKeySigner =
+    "0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80"
+        .parse()
+        .expect("送金者の秘密鍵（例: Anvil 既定 #0）");
+let from = pk.address();
+let provider = ProviderBuilder::new()
+    .wallet(EthereumWallet::new(pk))
+    .connect_http("http://127.0.0.1:8545".parse().expect("RPC URL"));
+```
+
+クレート先頭 `lib.rs` の **Self-Call 用 doctest は `ignore` 付き**で、HTTP 接続のみの短い例になっています。実ブロードキャストするコードでは上のように **ウォレット付き `Provider`** を使う必要があります。
+
+## Step 2 — commitment を用意する
+
+本クレートは **commitment を生成しません**。`H`・`message`・`r` の意味付けは [Commitment（Rust）](/sdk-rust/guides/commitment) の方針に従い、**本番のスキームはプロダクトで固定**してください。例として、UTF-8 バイト列とランダム 32 バイトを連結して Keccak-256 します。
+
+```rust
+use alloy::primitives::{keccak256, B256};
+use rand::RngCore;
+
+fn derive_commitment(message: &[u8]) -> B256 {
+    let mut r = [0u8; 32];
+    rand::thread_rng().fill_bytes(&mut r);
+    let mut buf = Vec::with_capacity(message.len() + 32);
+    buf.extend_from_slice(message);
+    buf.extend_from_slice(&r);
+    keccak256(&buf)
+}
+```
+
+チュートリアル以降のコードでは、扱いを単純にするため `B256::ZERO` や上記 `derive_commitment` の戻り値のどちらかを使います。本番では常に自前導出に置き換えてください。
+
+## Step 3 — Self-Call で送金
+
+`self_transfer::transfer` の第 2 引数 `from` は、ブロードキャストで **`msg.sender`** になる送金者アドレスです。**Step 1** で `from` を秘密鍵から導出し、`Provider` のウォレットと一致させてください。詳細は [self_transfer API](/sdk-rust/api/self-transfer) を参照してください。
+
+```rust
+use alloy::primitives::{address, utils::parse_ether, B256};
+use eth_twc_sdk::{send_transaction::self_transfer, types::SelfSingleTransferArgs};
+
+// Step 1 の `provider` / `from`（`pk.address()`）を使う
+let token = address!("0x5FbDB2315678afecb367f032d93F642f64180aa3");
+let to = address!("0x70997970C51812dc3A010C7d01b50e0d17dc79C8");
+let value = parse_ether("1").unwrap();
+let commitment = B256::ZERO; // 本番では自前で導出
+
+let args = SelfSingleTransferArgs {
+    token,
+    to,
+    value,
+    commitment,
+};
+
+let tx_hash = self_transfer::transfer(&provider, from, args).await?;
+```
+
+マイニング後のレシート検証は [Tutorial: レシート検証（verify）](/sdk-rust/guides/tutorial-verify) を参照してください。
+
+## エンドツーエンド例（1 つにまとめた `main`）
+
+```rust
+use alloy::network::EthereumWallet;
+use alloy::primitives::{address, utils::parse_ether, B256};
+use alloy::providers::ProviderBuilder;
+use alloy::signers::local::PrivateKeySigner;
+use eth_twc_sdk::{send_transaction::self_transfer, types::SelfSingleTransferArgs};
+
+#[tokio::main]
+async fn main() -> Result<(), eth_twc_sdk::SdkError> {
+    let pk: PrivateKeySigner = "0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80"
+        .parse()
+        .expect("送金者の秘密鍵");
+    let from = pk.address();
+    let provider = ProviderBuilder::new()
+        .wallet(EthereumWallet::new(pk))
+        .connect_http("http://127.0.0.1:8545".parse().expect("RPC URL"));
+    let token = address!("0x5FbDB2315678afecb367f032d93F642f64180aa3");
+    let to = address!("0x70997970C51812dc3A010C7d01b50e0d17dc79C8");
+    let value = parse_ether("1").unwrap();
+    let commitment = B256::ZERO; // 本番では自前で導出
+
+    let args = SelfSingleTransferArgs {
+        token,
+        to,
+        value,
+        commitment,
+    };
+
+    let _tx_hash = self_transfer::transfer(&provider, from, args).await?;
+    // レシート検証はドキュメント「Tutorial: レシート検証（verify）」（sdk-rust/guides/tutorial-verify）を参照
+
+    Ok(())
+}
+```
+
+EIP-712 経路（送金者が署名し Executor が送る例）は [Tutorial: EIP-712 + Executor](/sdk-rust/guides/tutorial-signature-executor) を参照してください。
+
+## Uni / バッチ Self-Call
+
+- **Uni（共有 commitment）**: `self_transfer::unified_transfer` — 引数は `SelfUniCommitTransfersArgs`（`details` と共有の `commitment`）
+- **バッチ**: `self_transfer::batch_transfer` — 引数は `SelfBatchTransferWithCommitArgs`（`CommittedTransferDetail` の配列）
+
+明細型の定義は [主な型](/sdk-rust/api/types) を参照してください。

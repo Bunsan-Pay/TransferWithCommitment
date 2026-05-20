@@ -165,6 +165,7 @@ export const transferWithCommitmentAbi = [
       },
       { name: 'validAfter', internalType: 'uint256', type: 'uint256' },
       { name: 'validBefore', internalType: 'uint256', type: 'uint256' },
+      { name: 'batchCommitment', internalType: 'bytes32', type: 'bytes32' },
       { name: 'signature', internalType: 'bytes', type: 'bytes' },
     ],
     name: 'transferWithAuthorization',

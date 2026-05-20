@@ -1,0 +1,25 @@
+{
+  "name": "twc-demo",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "bun --hot ./index.ts",
+    "build": "bun build ./index.html --outdir dist --public-path=${TWC_DEMO_PUBLIC_PATH:-/TransferWithCommitment/demo/}",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@tanstack/react-query": "^5.99.0",
+    "eth-twc-sdk-js": "workspace:^",
+    "eth-twc-sdk-react": "workspace:^",
+    "react": "^19.2.5",
+    "react-dom": "^19.2.5",
+    "viem": "^2.47.6",
+    "wagmi": "^3.6.1"
+  },
+  "devDependencies": {
+    "@types/bun": "latest",
+    "@types/react": "^19",
+    "@types/react-dom": "^19",
+    "typescript": "^5.9.3"
+  }
+}

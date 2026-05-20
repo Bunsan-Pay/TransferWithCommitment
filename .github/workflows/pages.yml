@@ -1,0 +1,68 @@
+name: GitHub Pages
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "demo/**"
+      - "docs/**"
+      - "sdk_js/**"
+      - "sdk_react/**"
+      - "scripts/assemble-pages-site.sh"
+      - "package.json"
+      - "bun.lock"
+      - ".github/workflows/pages.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          persist-credentials: false
+
+      - uses: oven-sh/setup-bun@v2
+
+      - name: Install dependencies
+        run: bun install
+
+      - name: Install Playwright (Mermaid)
+        run: bunx playwright install chromium
+        working-directory: docs
+
+      - name: Build docs
+        run: bun run docs:build
+        env:
+          TWC_PAGES_BASE_PATH: /${{ github.event.repository.name }}/
+
+      - name: Build demo
+        run: bun run demo:build
+        env:
+          TWC_DEMO_PUBLIC_PATH: /${{ github.event.repository.name }}/demo/
+
+      - name: Assemble site
+        run: bash scripts/assemble-pages-site.sh
+
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: _site
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4

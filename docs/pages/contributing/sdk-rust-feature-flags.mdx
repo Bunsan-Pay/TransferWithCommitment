@@ -1,0 +1,22 @@
+---
+title: Rust SDK の feature フラグ
+description: コンパイル時アドレス、test-config、integration-test。リポジトリメンテナ向け。
+---
+
+# config と feature フラグ
+
+`eth_twc_sdk` の挙動は `sdk_rust/src/config.rs` が正本です。
+
+## 通常ビルド
+
+`transfer_with_commitment_address()`（`integration-test` **無効**時、`test-config` **無効**時）は **`COMPILE_TIME_TWC`** — **CREATE2 決定論アドレス**（`contracts/TWC_CREATE2.md` と一致）を返します。
+
+## `test-config` feature
+
+単体テスト向けに **固定非ゼロ**（`config.rs` 内の `0x2222…`）を埋め込みます。
+
+## `integration-test` feature
+
+Anvil 等との **結合テスト**向け: 初回呼び出しで環境変数 `ETH_TWC_CONTRACT_ADDRESS` をパースして `OnceLock` に固定。無効・不正ならゼロ扱い。
+
+`TRANSFER_WITH_COMMITMENT_ADDRESS` **定数**はゼロのプレースホルダ — 実アドレスは **`transfer_with_commitment_address()` 関数**を使う、という設計です。詳細は [結合テスト](/contributing/sdk-rust-integration-tests)。

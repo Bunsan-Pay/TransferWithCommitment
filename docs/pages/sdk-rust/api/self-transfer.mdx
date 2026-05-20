@@ -1,0 +1,33 @@
+---
+title: send_transaction::self_transfer — Rust SDK
+description: msg.sender による transfer の 3 オーバーロード。
+---
+
+# `eth_twc_sdk::send_transaction::self_transfer`
+
+すべて **`call().await?` でシミュレーション**してから **`send().await?`** します。
+
+## `transfer(provider, from, args: SelfSingleTransferArgs)`
+
+コントラクトの `transfer_0(token, to, value, commitment)`（単一送金）。
+
+## `unified_transfer`
+
+`details` **空** → **`SdkError::EmptyTransferDetails`**（続行しない）。
+
+`transfer_1(details, commitment)` にマップ。
+
+## `batch_transfer`
+
+同上で空なら `EmptyTransferDetails`。`transfer_2(details)`。
+
+## 共通エラー
+
+`ContractNotConfigured`（ゼロアドレス・integration-test 未設定）, `ContractNotDeployed`（`eth_getCode` が空）, RPC/contract 系 `SdkError::Alloy`, 送信失敗。
+
+**呼び出し形の例（単一 Self-Call）**
+
+```rust
+// use eth_twc_sdk::send_transaction::self_transfer;
+let tx_hash = self_transfer::transfer(&provider, from, args).await?;
+```

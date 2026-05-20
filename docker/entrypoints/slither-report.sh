@@ -7,6 +7,13 @@ cd /work/contracts
 OUT_DIR="/work/contracts/audit/slither"
 mkdir -p "$OUT_DIR"
 
+# compose では `out/` と `cache/` が named volume のマウントポイント。
+# Crytic-compile は `forge clean` でその直下を削除しようとし EBUSY になるため、
+# このスクリプト内のビルドだけ別パスを使う（リポジトリ直下の通常 out/cache は触らない）。
+export FOUNDRY_OUT="${FOUNDRY_OUT:-out-slither}"
+export FOUNDRY_CACHE_PATH="${FOUNDRY_CACHE_PATH:-cache-slither}"
+mkdir -p "${FOUNDRY_OUT}" "${FOUNDRY_CACHE_PATH}"
+
 echo "==> forge build"
 forge build -q
 
@@ -26,7 +33,8 @@ META="${OUT_DIR}/REPORT_META.txt"
 } | tee "$META"
 
 SLITHER_EXIT=0
-SLITHER_ARGS=(--filter-paths "lib/")
+# Slither は既定で slither.config.json しか読まない。リポジトリは .slither.config.json のため明示する。
+SLITHER_ARGS=(--config-file ".slither.config.json" --filter-paths "lib/")
 
 echo ""
 echo "==> slither（JSON / SARIF / 人間可読ログ）"

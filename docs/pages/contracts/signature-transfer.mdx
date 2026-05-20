@@ -1,0 +1,45 @@
+---
+title: SignatureTransfer
+description: EIP-712・transferWithAuthorization・cancelAuthorization。
+---
+
+# SignatureTransfer
+
+`SignatureTransfer.sol` は **オフチェーン EIP-712 署名**により、**Executor**（= **トランザクション送信者** `msg.sender` となるアドレス）が **`transferWithAuthorization`** を実行できる経路です（メッセージ上の `executor` と一致必須）。
+
+## 署名検証
+
+- OpenZeppelin **`SignatureChecker.isValidSignatureNow`** により **EOA（ECDSA）** と **ERC-1271** の両方に対応。
+- **別 verifier コントラクト・`Ownable`・`updateVerifier` は無い** — デプロイ後の検証ロジックは **イミュータブル**（`SPEC.md` と同じ方針）。
+
+## 有効期間（`validAfter` / `validBefore`）
+
+オンチェーンでは `block.timestamp > validAfter` かつ `block.timestamp < validBefore` が要請されます。**`validAfter` ちょうどの Unix 秒**、または **`validBefore` ちょうどの Unix 秒**での呼び出しはどちらも失敗します（境界は含まない）。`validAfter <= validBefore` であることも別途要求されます。詳細は `SignatureTransfer.sol` の `validTimestamp` modifier と **`contracts/SPEC.md`** の表を参照してください。
+
+## 主なエントリポイント
+
+| 関数 | 概要 |
+| --- | --- |
+| `transferWithAuthorization`（単一） | `from` 署名、`executor` が送信、単一 `commitment`。 |
+| `transferWithAuthorization`（Uni） | `TransferDetail[]` + 共有 `commitment`。 |
+| `transferWithAuthorization`（バッチ） | `CommittedTransferDetail[]` + **`batchCommitment`**。 |
+| `cancelAuthorization` | 承認の取消。トークン移転は行わず、**`replayGuard` により当該 commitment を使用済み**として記録。 |
+
+全関数の引数・戻り値・digest 構築手順・前提条件・事後条件は [Reference: SignatureTransfer](/contracts/reference/signature-transfer) を参照。
+
+## Forge テストで見る最小例
+
+リポジトリ内 `contracts/test/SignatureTransfer/SignatureTransfer.t.sol` — 単一 `transferWithAuthorization` の成功パス（`vm.sign` 後の抜粋）:
+
+```solidity
+twc.transferWithAuthorization(
+    alice, recipient, address(token), amount, validAfter, validBefore, c,
+    abi.encodePacked(r, s, v)
+);
+```
+
+無効な署名は `test_transferWithAuthorization_revertsBadSignature`、commitment リプレイは `test_transferWithAuthorization_revertsReplay` 等で保証します。
+
+## ハッシュ系定数
+
+コントラクト側に **`TRANSFER_WITH_COMMIT_TYPEHASH`** 等が定義され、`Hash.sol` の定数と整合します。SDK は ABI / EIP-712 型定義経由でこれらと一致させます。

@@ -1,0 +1,117 @@
+---
+title: 構成図
+description: Self-Call・Signature-Transfer・SDK-コントラクト間の構成図（Mermaid）。
+---
+
+# 構成図
+
+以下の構成図はオフチェーンとオンチェーンの役割の分離を示しています。
+
+**図の要約（テキスト）**: Self-Call では送信者がコントラクトへ `transfer` を送り、Verifier はトランザクションのレシートからイベントをたどって検証します。Signature-Transfer では Executor が `transferWithAuthorization` を呼び、署名はオフチェーンの Signer が作成して Executor に渡します。どちらも `approve` → ERC-20 `transferFrom` → `TransferWithCommitmentSent` ログ、という流れが共通です。
+
+## Self-Call
+
+```mermaid
+---
+title: TransferWithCommitment self-call
+---
+graph LR
+    subgraph Offchain[Off-chain]
+        Sender([Sender])
+        Verifier([Verifier])
+        Proof(Commitment<br/>generator)
+    end
+    subgraph Onchain[Ethereum]
+        subgraph Extension[TransferWithCommitment contract]
+            Access(Access / Policy)
+            Commit[(Commitment<br/>registry)]
+            Event(Event<br/>emission)
+        end
+        Token(ERC-20 Token)
+        Block[(Block)]
+    end
+    Sender -->|Call transfer| Access
+    Sender -->|"Send info<br/>(payload, nonce, TxId)"| Verifier
+    Sender -->Proof
+    Proof -->|Include commitment| Access
+    Access -->|Store used commitment| Commit
+    Access -->|Emit event| Event
+    Event -->|Include to Tx| Block
+    Block -->|Get Tx receipt| Verifier
+    Sender -->|approve| Token
+    Access -->|Call<br/>transferFrom| Token
+    Verifier -->|Notice schema| Sender
+```
+
+## Signature-Transfer
+
+```mermaid
+---
+title: TransferWithCommitment signature-transfer
+---
+graph LR
+    subgraph Offchain[Off-chain]
+        Sender([Sender])
+        Verifier([Verifier])
+        Proof(Commitment<br/>generator)
+        Signer(Signer)
+        Executor([Executor])
+    end
+    subgraph Onchain[Ethereum]
+        subgraph Extension[TransferWithCommitment contract]
+            Access(Access / Policy<br/>)
+            Commit[(Commitment<br/>registry)]
+            Event(Event<br/>emission)
+        end
+        Token(ERC-20 Token)
+        Block[(Block)]
+    end
+    Executor -->|Call transferWithAuthorization| Access
+    Sender -->|Send metadata| Verifier
+    Sender --> Proof
+    Sender -->|Sign typed data| Signer
+    Proof -->|Include commitment| Signer
+    Signer -->|Send<br/>payload, signature| Executor
+    Access -->|Store used commitment| Commit
+    Access -->|Emit event| Event
+    Event -->|Include to Tx| Block
+    Block -->|Get Tx receipt| Verifier
+    Sender -->|approve| Token
+    Access -->|EIP-712 digest +<br/>SignatureChecker| Access
+    Access -->|Call<br/>transferFrom| Token
+    Verifier -->|Notice schema| Sender
+```
+
+## SDK とコントラクトのつながり
+
+次の図は **`sdk_js/SPEC.md`** に沿った、オフチェーン各モジュールとコントラクト・RPC の関係です。
+
+```mermaid
+flowchart LR
+  subgraph offchain["オフチェーン"]
+    sign["sign.ts<br/>EIP-712 署名"]
+    verify["verify.ts<br/>レシート上のイベント検証"]
+  end
+  subgraph tx["トランザクション送信"]
+    selfTx["selfTransfer/*/<br/>msg.sender 経路"]
+    sigTx["signatureTransfer/*/sendTx<br/>署名検証経路"]
+  end
+  C["TransferWithCommitment<br/>(contracts)"]
+  RPC["RPC<br/>レシート・ログ"]
+  sign --> sigTx
+  selfTx --> C
+  sigTx --> C
+  verify --> RPC
+```
+
+- **Self-Call** — `selfTransfer` がコントラクトの `transfer` を直接呼ぶ。
+- **Signature-Transfer** — 先に `sign` で EIP-712 署名し、`signatureTransfer` が `transferWithAuthorization` / `cancelAuthorization` を呼ぶ。
+- **検証** — コントラクト呼び出しはせず、**RPC からレシートを取得**してイベントを解析する。
+
+React / Rust SDK も、この JS モジュール境界に相当する API をそれぞれのランタイムでラップしています。
+
+### データの流れ（概略）
+
+1. **アプリ**が commitment をオフチェーンで決め、SDK 経由でコントラクトに送金を依頼する。
+2. **コントラクト**が ERC-20 `transferFrom` とイベント発行、commitment の消費を行う。
+3. **検証者**が RPC からレシートを取り、SDK の `verify` 相当でイベントと期待値を照合する。

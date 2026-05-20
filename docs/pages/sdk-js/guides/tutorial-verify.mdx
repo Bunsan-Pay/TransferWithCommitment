@@ -1,0 +1,38 @@
+---
+title: "Tutorial: レシート検証（verify）"
+description: マイニング後の tx と期待パラメータで TransferWithCommitmentSent を照合する（Self-Call / EIP-712+Executor 共通）。
+---
+
+# Tutorial: レシート検証（verify）
+
+**Self-Call**（`transfer`）でも **EIP-712 + Executor**（`transferWithAuthorization`）でも、オンチェーンでイベントが出たあとの **レシート検証**は同じ API です。`PublicClient` が **canonical TWC をデプロイしたチェーン**に接続され、**期待する送金パラメータ**（`from` / `token` / `to` / `value` / `commitment`）が分かっていることが前提です。
+
+手順の前段（送金・署名）は [Tutorial: Self-Call](/sdk-js/guides/tutorial-self-call) または [Tutorial: EIP-712 + Executor](/sdk-js/guides/tutorial-signature-executor) を参照してください。
+
+## レシートを verify で照合する
+
+```typescript
+import { verify } from "eth-twc-sdk-js/verify";
+
+await verify(publicClient, txHash, {
+  from: senderAddress,
+  token,
+  to,
+  value,
+  commitment,
+});
+```
+
+成功すると `Promise<void>` が resolve します。レシートに一致する `TransferWithCommitmentSent` が **なければ** `Error("TransferWithCommitmentSent event not found")` です。API 詳細は [verify](/sdk-js/api/verify) を参照してください。
+
+## （任意）イベントだけ列挙
+
+パラメータ照合はせず、ログだけ取りたいときは次を使います。
+
+```typescript
+import { getTransferWithCommitmentSentEventLogs } from "eth-twc-sdk-js/verify";
+
+const logs = await getTransferWithCommitmentSentEventLogs(publicClient, txHash);
+```
+
+内容でフィルタはしないため、パラメータ照合は自分で行うか `verify` を使ってください。

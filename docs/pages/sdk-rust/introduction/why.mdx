@@ -1,0 +1,20 @@
+---
+title: Why — Rust SDK
+description: Alloy と async を選ぶ理由。
+---
+
+# Why
+
+Ethereum 向け Rust では **Alloy** が型安全なコントラクト境界と RPC を提供します。`eth-twc-sdk` はその上に **TWC 固有の EIP-712・`transfer`・`transferWithAuthorization`・イベント検証**だけを載せ、**余計な抽象は置かない**ことを目指します。
+
+`tokio` 上の **`async`** が前提です。同期 API は提供しません。
+
+- **実践**: [Self-Call チュートリアル](/sdk-rust/guides/tutorial-self-call)、[Executor チュートリアル](/sdk-rust/guides/tutorial-signature-executor)
+
+### 章内の主なページ
+
+| カテゴリ | リンク |
+| --- | --- |
+| 導入 | [インストール](/sdk-rust/introduction/installation) · [Getting started](/sdk-rust/introduction/getting-started) · [互換性](/sdk-rust/introduction/compatibility) · [FAQ](/sdk-rust/introduction/faq) |
+| ガイド | [commitment](/sdk-rust/guides/commitment) · [errors](/sdk-rust/guides/errors) |
+| API | [クレートルート](/sdk-rust/api/crate-root) · [sign](/sdk-rust/api/sign) · [送金（Self/署名）](/sdk-rust/api/self-transfer) / [signature-transfer](/sdk-rust/api/signature-transfer) · [verify](/sdk-rust/api/verify) |

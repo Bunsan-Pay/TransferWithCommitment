@@ -1,0 +1,31 @@
+---
+title: EIP-712 domain とゼロ salt
+description: 5267 / viem と OpenZeppelin EIP-712 の食い違いを SDK がどう扱うか。
+---
+
+# EIP-712 domain とゼロ `salt`
+
+## なぜ気にするか
+
+OpenZeppelin の `EIP712` は domain separator に **`salt` を含みません**。一方 ERC-5267 の返却や viem の `getEip712Domain` では **`salt: bytes32(0)` が付く**ことがあり、`hashTypedData` にそのまま渡すと **オンチェーン separator と異なるハッシュ**になりえます。
+
+## `sign` の挙動
+
+1. **`getEip712Domain`**（TWC コントラクト）
+2. **`salt` がゼロワードなら `domain` からキーを削除**してから **`signTypedData`**
+3. **戻り値 `Signed*` の `domain` は、署名に実際に使ったオブジェクトと同じ**
+
+非ゼロの `salt` はそのまま残ります。
+
+**例**（ダミー — ゼロ `salt` を落としたあと）:
+
+```typescript
+const domain = {
+  name: "TransferWithCommitment",
+  version: "1",
+  chainId: 1n,
+  verifyingContract: "0x0000000000000000000000000000000000000001",
+};
+```
+
+**`sendTx`** は `domain` を **チェーン id・`verifyingContract` の照合**にだけ使い、calldata には含めません。

@@ -4,13 +4,17 @@ import type { Hex, PublicClient, WalletClient } from "viem";
 import { ADDR, ADDR_B, COMMIT, SALT_ZERO, testDomain } from "./fixtures";
 import { UINT256_MAX } from "../../types/utils";
 
-const sign = await import("../../sign");
+import { sign as signCancel } from "../../signatureTransfer/cancelAuthorization/sign";
+import { sign as signBatch } from "../../signatureTransfer/batch/sign";
+import { sign as signSingle } from "../../signatureTransfer/single/sign";
+import { sign as signUnified } from "../../signatureTransfer/unified/sign";
 
-describe("sign.ts（config モック済み）", () => {
-  test("singleTransfer は domain・署名・Signed* 形の戻り値を返す", async () => {
+describe("signatureTransfer/*/sign.ts（config モック済み）", () => {
+  test("single: domain・署名・Signed* 形の戻り値を返す", async () => {
     const domain = testDomain();
     const publicClient = {
       chain: mainnet,
+      getCode: async () => "0x6000",
       getEip712Domain: async () => ({
         domain,
         fields: "0x0f" as Hex,
@@ -24,7 +28,7 @@ describe("sign.ts（config モック済み）", () => {
       signTypedData: mock(() => Promise.resolve(sigHex)),
     } as unknown as WalletClient;
 
-    const out = await sign.singleTransfer(
+    const out = await signSingle(
       publicClient,
       wallet,
       ADDR as Hex,
@@ -54,6 +58,7 @@ describe("sign.ts（config モック済み）", () => {
     let passedDomain: unknown;
     const publicClient = {
       chain: mainnet,
+      getCode: async () => "0x6000",
       getEip712Domain: async () => ({
         domain,
         fields: "0x0f" as Hex,
@@ -70,7 +75,7 @@ describe("sign.ts（config モック済み）", () => {
       }),
     } as unknown as WalletClient;
 
-    await sign.singleTransfer(
+    await signSingle(
       publicClient,
       wallet,
       ADDR as Hex,
@@ -98,6 +103,7 @@ describe("sign.ts（config モック済み）", () => {
     let passedDomain: unknown;
     const publicClient = {
       chain: mainnet,
+      getCode: async () => "0x6000",
       getEip712Domain: async () => ({
         domain,
         fields: "0x0f" as Hex,
@@ -114,7 +120,7 @@ describe("sign.ts（config モック済み）", () => {
       }),
     } as unknown as WalletClient;
 
-    await sign.singleTransfer(
+    await signSingle(
       publicClient,
       wallet,
       ADDR as Hex,
@@ -148,7 +154,7 @@ describe("sign.ts（config モック済み）", () => {
     } as unknown as WalletClient;
 
     await expect(
-      sign.singleTransfer(publicClient, wallet, ADDR_B as Hex, {
+      signSingle(publicClient, wallet, ADDR_B as Hex, {
         from: ADDR,
         to: ADDR_B,
         token: ADDR,
@@ -179,7 +185,7 @@ describe("sign.ts（config モック済み）", () => {
     } as unknown as WalletClient;
 
     await expect(
-      sign.cancelAuthorization(publicClient, wallet, ADDR_B as Hex, {
+      signCancel(publicClient, wallet, ADDR_B as Hex, {
         authorizer: ADDR,
         commitment: COMMIT,
       }),
@@ -191,9 +197,10 @@ describe("sign.ts（config モック済み）", () => {
     expect(signTypedData).not.toHaveBeenCalled();
   });
 
-  test("uniCommitTransfers / batchTransferWithCommit も from と account の一致を要する", async () => {
+  test("unified / batch も from と account の一致を要する（UniCommit / Batch EIP-712）", async () => {
     const publicClient = {
       chain: mainnet,
+      getCode: async () => "0x6000",
       getEip712Domain: async () => ({
         domain: testDomain(),
         fields: "0x0f" as Hex,
@@ -215,7 +222,7 @@ describe("sign.ts（config モック済み）", () => {
     const committedDetail = { ...detail, commitment: COMMIT };
 
     await expect(
-      sign.uniCommitTransfers(publicClient, wallet, ADDR_B as Hex, {
+      signUnified(publicClient, wallet, ADDR_B as Hex, {
         from: ADDR,
         executor: ADDR,
         details: [detail],
@@ -224,17 +231,19 @@ describe("sign.ts（config モック済み）", () => {
     ).rejects.toThrow(/does not match EIP-712 message from/);
 
     await expect(
-      sign.batchTransferWithCommit(publicClient, wallet, ADDR_B as Hex, {
+      signBatch(publicClient, wallet, ADDR_B as Hex, {
         from: ADDR,
         executor: ADDR,
         details: [committedDetail],
+        batchCommitment: COMMIT,
       }),
     ).rejects.toThrow(/does not match EIP-712 message from/);
   });
 
-  test("対応外チェーンなら Unsupported chain", async () => {
+  test("PublicClient と WalletClient の chain.id が違えば chain mismatch", async () => {
     const publicClient = {
       chain: { id: 999999, name: "unknown" },
+      getCode: async () => "0x6000",
       getEip712Domain: async () => {
         throw new Error("should not call");
       },
@@ -242,7 +251,7 @@ describe("sign.ts（config モック済み）", () => {
     const wallet = { chain: mainnet } as unknown as WalletClient;
 
     await expect(
-      sign.singleTransfer(publicClient, wallet, ADDR as Hex, {
+      signSingle(publicClient, wallet, ADDR as Hex, {
         from: ADDR,
         to: ADDR_B,
         token: ADDR,
@@ -250,6 +259,6 @@ describe("sign.ts（config モック済み）", () => {
         value: 1n,
         commitment: COMMIT,
       }),
-    ).rejects.toThrow(/Unsupported chain/);
+    ).rejects.toThrow(/chain mismatch/);
   });
 });

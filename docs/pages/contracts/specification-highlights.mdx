@@ -1,0 +1,65 @@
+---
+title: 仕様上の要点
+description: SPEC.md の Specification 節の横断要約。
+---
+
+# 仕様上の要点（`contracts/SPEC.md`）
+
+関数ごとの前提／事後条件の**完全な表**はリポジトリの **`contracts/SPEC.md`** の **`## Requirements` → `### Specification`** 以下にあります。ここでは**横断ルール**だけ抜き出します。
+
+<h2 id="一次情報contracts-specmd">一次情報: <code>contracts/SPEC.md</code></h2>
+
+リポジトリのローカルクローンで、エディタや <code>grep</code> から<strong>見出し文字列</strong>で辿るための目印です（本ドキュメントサイトは <code>contracts/SPEC.md</code> 本体をホストしません）。
+
+| 探したい内容 | `SPEC.md` 内の見出し（コピー用） |
+| --- | --- |
+| 全関数の前提／事後条件テーブル | 見出し **Requirements** 直下の各 **\`*.sol\`** 節（例: SelfTransfer / SignatureTransfer） |
+| 横断ルール箇条書き | `### Specification` |
+| Overview・図 | `## Overview` |
+
+他ページからは **[一次情報（本節）](#一次情報contracts-specmd)** へリンクできます。
+
+各見出しと `SPEC.md` の対応（横断要約の目次）:
+
+| 本ページの節 | `contracts/SPEC.md` |
+| --- | --- |
+| 署名とイベント | `## Requirements` 周辺・各 `### *.sol` の説明 |
+| commitment の一意性 | `State.sol` / `SignatureTransfer` の表・本文 |
+| オフチェーン検証の意味 | `Specification` 内の表と注意書き |
+| 耐量子・ガバナンス | 冒頭 `Overview` および `SignatureTransfer` 節 |
+| ERC-1271 と実行順 | `### SignatureTransfer.sol` および `Specification` の「呼び出し順」系 |
+| トークン種別・明細長 | `### SelfTransfer` / `Specification` |
+
+## 署名とイベント
+
+- **Self-Call** — オフチェーン EIP-712 は不要（トランザクション署名のみ）。
+- **委任** — EIP-712 署名は **1 回**。
+- 送金のたびに **`TransferWithCommitmentSent`** を発行。
+
+## commitment の一意性
+
+- **`State`** のビットマップと **`replayGuard`** で再利用を防止。
+- **バッチ署名**では EIP-712 に **`batchCommitment`** が含まれ、**`replayGuard(from, batchCommitment)`** が先に掛かり、その後各明細の commitment が **`_transferWithGuard`** で消費される（詳細は `SPEC.md`）。
+
+## オフチェーン検証の意味
+
+- オンチェーンは **commitment の一意性**と**イベントのフィールド**まで。
+- **ペイロードとスキーマの対応**はオフチェーンの責務。
+
+## 耐量子（PQ）・ガバナンス
+
+- 現行は OpenZeppelin **`SignatureChecker`**（ECDSA / ERC-1271）。PQ 標準が固まったら **再デプロイ等**で取り込む想定。
+- **管理者によるオンチェーン verifier の差し替えは置かない**（immutable 志向）。
+
+## ERC-1271 と実行順
+
+- 委任経路では **`replayGuard` → `isValidSignatureNow` → `_transfer`** の順（`SPEC.md` の詳細段落参照）。
+
+## トークン移転の設計と非対応トークン
+
+- コントラクトは **allowance ベースの `transferFrom` のみ** — 他人資産のカストディはしない設計。
+- **手数料・リベース型 ERC-20**は `value` と実受取が一致しない可能性があり、**非対応**として扱う旨が `SPEC.md` に記載。
+
+## 明細配列の長さ
+
+- オンチェーンの **要素数上限は無い**。ガス失敗のリスクは **送信者／executor** が負う。配列長の見積り・シミュレーションは **アプリ側の責務**。

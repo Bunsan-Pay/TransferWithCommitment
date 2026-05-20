@@ -1,2 +1,5 @@
 .env
 node_modules
+docs/dist
+demo/dist
+_site

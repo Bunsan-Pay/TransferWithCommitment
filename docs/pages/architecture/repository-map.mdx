@@ -1,0 +1,17 @@
+---
+title: リポジトリマップ
+description: モノレポの主要ディレクトリと役割。
+---
+
+# リポジトリマップ
+
+| パス         | 役割                                                                                                                                |
+| ------------ | ----------------------------------------------------------------------------------------------------------------------------------- |
+| `contracts/` | Foundry プロジェクト。`TransferWithCommitment` の Solidity 実装・テスト・スクリプト・生成 ABI。詳細は **[Contracts](/contracts)**。 |
+| `sdk_js/`    | `eth-twc-sdk-js` — viem ベースの TypeScript/JavaScript SDK。                                                                        |
+| `sdk_react/` | `eth-twc-sdk-react` — wagmi + TanStack Query の React フック。                                                                      |
+| `sdk_rust/`  | `eth-twc-sdk` — Alloy ベースの Rust クレート。                                                                                      |
+| `docker/`    | `compose.yml` — CI 再現用コンテナ（Foundry / Slither / SDK 結合テストなど）。                                                       |
+| `scripts/`   | `ci-contracts.sh` / `slither.sh` / SDK 結合テスト用シェル。                                                                         |
+
+**ルートディレクトリ上の `package.json`** は、 **`sdk_js`** / **`sdk_react`** / **`contracts`** / **`docs/`（`twc-docs`）** を管理する Bun workspaces です。

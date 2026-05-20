@@ -13,8 +13,6 @@ export const COMMIT =
 export const SALT_ZERO =
   "0x0000000000000000000000000000000000000000000000000000000000000000" as const;
 
-export const supportedChainsTest = [mainnet, sepolia, polygon, arbitrum];
-
 export function testDomain(
   verifyingContract: `0x${string}` = TEST_VERIFIER_CONTRACT,
   chainId: number = mainnet.id,

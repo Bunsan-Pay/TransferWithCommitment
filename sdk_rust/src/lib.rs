@@ -9,7 +9,7 @@
 //! 3. **送金** — EIP-712 委任なら [`sign`] で署名バンドルを作り [`send_transaction::signature_transfer`] で送信。`msg.sender` 送金なら [`send_transaction::self_transfer`] を直接呼びます。
 //! 4. **検証** — マイニング後のトランザクションハッシュと [`VerifyArgs`] で [`verify`] を呼び、レシート上の `TransferWithCommitmentSent` を照合します。
 //!
-//! `msg.sender` で送金して検証する例（TWC が [`config`] に設定済みで、RPC が対応チェーンであること）。
+//! `msg.sender` で送金して検証する例（接続チェーンの [`config::transfer_with_commitment_address`] に TWC がデプロイ済みであること）。
 //!
 //! ```ignore
 //! use alloy::primitives::{address, utils::parse_ether, B256};
@@ -126,11 +126,17 @@
 //! }
 //! ```
 //!
+//! ## Commitment（`B256`）の導出 — 利用者向け注意
+//!
+//! 本クレートは **`commitment` を生成するヘルパを提供しない**。理由は、(1) 外部とランダム nonce を共有するスキームなど、アプリ層のスキーマとの**相互運用性**を SDK で固定しないため、(2) ハッシュ関数の選択を SDK に押し付けず、**ハッシュに関する単一障害点**にならないためである。
+//!
+//! オフチェーンで `commitment` を導出するときは、利用者の責任で **暗号学的にランダムな `r`** と、用途に適した**安全なハッシュ関数 `H`** を選び、少なくとも **`commitment = H(message || r)`** の形（`message` はアプリのスキーマに従うバイト列）を満たすことを推奨する。`H` の具体（例: Keccak-256）や `message` のエンコードは、アプリと合意者間で定義する。
+//!
 //! ## 構成
 //!
 //! | モジュール | 役割 |
 //! |------------|------|
-//! | [`config`] | コントラクトアドレス・対応チェーン ID |
+//! | [`config`] | 決定論 TWC アドレス・EIP-712 / CREATE2 salt 定数 |
 //! | [`sign`] | EIP-712 署名（[`Provider`](alloy::providers::Provider) + [`Signer`](alloy::signers::Signer)） |
 //! | [`verify`] | トランザクションレシート上のイベント検証 |
 //! | [`send_transaction::self_transfer`] | `msg.sender` による `transfer` |
@@ -185,7 +191,7 @@ pub use verify::VerifyArgs;
 pub use events::TransferWithCommitmentSent;
 pub use utils::{
     assert_provider_supported_chain, assert_signed_domain_matches_client_and_config,
-    assert_signed_domain_matches_provider_and_config, is_supported_chain, is_supported_chain_id,
+    assert_signed_domain_matches_provider_and_config,
 };
 
 mod contract;

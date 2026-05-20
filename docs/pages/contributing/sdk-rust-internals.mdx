@@ -1,0 +1,37 @@
+---
+title: Rust SDK 内部 API（config モジュール）
+description: sdk_rust/src/config.rs の定数・関数。リポジトリメンテナ向け。
+---
+
+# `eth_twc_sdk::config`（内部リファレンス）
+
+ここは **`sdk_rust/src/config.rs`** の意味を正本として示します。
+
+## `ZERO_TRANSFER_ADDRESS`
+
+`Address` 定数。未設定表現（主に `integration-test` で env 未設定時）。
+
+## `transfer_with_commitment_address() -> Address`
+
+- **`integration-test` 以外**（通常ビルド）: `COMPILE_TIME_TWC`。既定は **CREATE2 決定論アドレス**（`test-config` 有効時は `0x2222…`）。
+- **`integration-test` feature 有効時**: 初回呼び出しで `ETH_TWC_CONTRACT_ADDRESS` をパース。失敗・未設定はゼロ扱い。
+
+## `TRANSFER_WITH_COMMITMENT_ADDRESS`
+
+- `integration-test` **以外**: `COMPILE_TIME_TWC` と同じ `const`。
+- `integration-test` 時: プレースホルダ（ゼロ）。実体は常に関数版を用いる。
+
+## `EIP712_DOMAIN_NAME` / `EIP712_DOMAIN_VERSION`
+
+Solidity 側の EIP-712 名・version と一致させる定数。
+
+## `assert_transfer_contract_configured() -> Result<(), SdkError>`
+
+ゼロアドレスのとき `SdkError::ContractNotConfigured`。
+
+## Feature 早見
+
+| feature            | 効果 |
+| --- | --- |
+| `test-config`      | 単体テスト用の **非ゼロ固定**（`0x2222…`） |
+| `integration-test` | `ETH_TWC_CONTRACT_ADDRESS` を実行時解決 |

@@ -1,0 +1,16 @@
+---
+title: React SDK — チュートリアル一覧
+description: Self-Call と EIP-712 + Executor の手順付きガイドへの入口。
+---
+
+# チュートリアル
+
+React SDK の手順付きガイドは、**Self-Call**・**EIP-712 + Executor（SignatureTransfer）**・**レシート検証（verify）** の 3 本です。
+
+1. **[Tutorial: Self-Call（エンドツーエンド）](/sdk-react/guides/tutorial-self-call)** — `approve`・`commitment`・`useSelfTransfer` まで（検証は別ページ）。
+2. **[Tutorial: EIP-712 + Executor](/sdk-react/guides/tutorial-signature-executor)** — `useSignSingleTransfer`・`useSendAuthorizedSingleTransfer`、および Executor との接続切り替えの注意点。
+3. **[Tutorial: レシート検証（verify）](/sdk-react/guides/tutorial-verify)** — `useVerifyTransfer`・イベント列挙。
+
+シナリオ別の導線は [Architecture — シナリオと実装手順](/architecture/sequences#シナリオと実装手順) を参照してください。
+
+共通の前提（`WagmiProvider`・`QueryClientProvider`・canonical TWC のデプロイ）は [Providers をセットアップする](/sdk-react/guides/providers-setup) を先に完了してください。フックの一覧と挙動は [フック完全リファレンス](/sdk-react/api/hooks)、エラーメッセージは [narrowWriteClients とよくある失敗](/sdk-react/api/clients-errors) と [エラーと切り分け（JS）](/sdk-js/guides/errors) を参照してください。

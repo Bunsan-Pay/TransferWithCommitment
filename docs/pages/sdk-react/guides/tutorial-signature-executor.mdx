@@ -1,0 +1,132 @@
+---
+title: "Tutorial: EIP-712 署名と Executor 送信 — React SDK"
+description: sign → signatureTransfer を wagmi フックで役割分担付きに実装する（検証は verify チュートリアルへ）。
+---
+
+# Tutorial: EIP-712 + Executor
+
+このフローでは **送金者**がオフチェーンで EIP-712 署名し、**Executor**（別 EOA）が `transferWithAuthorization` を送ります。フックは内部で `eth-twc-sdk-js` の **`signatureTransfer/*/sign`** と **`signatureTransfer/*/sendTx`** を呼びます。
+
+## 前提チェックリスト
+
+- [ ] [Providers をセットアップする](/sdk-react/guides/providers-setup) 済みで、**同一チェーン**上で読み取り・署名・送信が行えること。
+- [ ] 使っている **npm 版 SDK** が、接続先チェーン上の TWC デプロイと整合している。
+- [ ] 送金元がトークンを TWC に `approve` 済み（手順は [Tutorial: Self-Call](/sdk-react/guides/tutorial-self-call) の Step 1b）。
+- [ ] **署名**を実行するとき、wagmi の接続アドレスが EIP-712 の **`from`** と一致している。
+- [ ] **`useSendAuthorizedSingleTransfer` を実行するとき**、接続アドレスが EIP-712 の **`executor`** と一致している。
+
+`useSign*` / `useSendAuthorized*` は [narrowWriteClients](/sdk-react/api/clients-errors) により、実行直前に `publicClient`・`walletClient`・接続アドレスを要求します。
+
+## Step 0 — 送金者と Executor の準備（例）
+
+ブラウザでは **1 接続につき 1 アクティブアドレス**が `useWalletClient` / `useConnection().address` に反映されます。そのため **送金者と Executor を別 EOA にする**場合の典型は次のどちらかです。
+
+1. **2 段階 UI** — 先に送金者アカウントで「署名」し、`signed` を state やサーバに保持する。ユーザーに Executor アカウントへ**接続し直し**てもらい、「送信」ボタンで `useSendAuthorizedSingleTransfer` を呼ぶ。
+2. **テスト・スクリプト** — JS SDK の [Tutorial: EIP-712 + Executor](/sdk-js/guides/tutorial-signature-executor) の Step 0 のように、`createPublicClient` / `createWalletClient` で **2 つの鍵**を用意し、React 外で検証する。
+
+以下は **2 段階 UI** の最小例です（接続切替はアプリの Connect UI に委ねます）。
+
+## Step 1 — 送金者側: 署名
+
+**送金者アカウントに接続した状態**で `useSignSingleTransfer` を呼びます。`args.from` と接続アドレスを一致させてください。
+
+```tsx
+import { useSignSingleTransfer } from "eth-twc-sdk-react";
+import type {
+  SignedSingleTransfer,
+  SignatureTransferSingleArgs,
+} from "eth-twc-sdk-js/signatureTransfer/single";
+import type { Hex } from "viem";
+import { useConnection } from "wagmi";
+
+export function SignStep({
+  token,
+  recipient,
+  executor,
+  commitment,
+  onSigned,
+}: {
+  token: Hex;
+  recipient: Hex;
+  executor: Hex;
+  commitment: Hex;
+  onSigned: (signed: SignedSingleTransfer) => void;
+}) {
+  const { address } = useConnection();
+  const sign = useSignSingleTransfer();
+
+  async function run() {
+    if (!address) return;
+    const args: SignatureTransferSingleArgs = {
+      from: address,
+      to: recipient,
+      token,
+      executor,
+      value: 1_000_000n,
+      commitment,
+    };
+    const signed = await sign.mutateAsync(args);
+    onSigned(signed);
+  }
+
+  return (
+    <button type="button" disabled={!address || sign.isPending} onClick={() => void run()}>
+      {sign.isPending ? "署名中…" : "EIP-712 で署名"}
+    </button>
+  );
+}
+```
+
+`signed` には **`domain`**（ゼロ salt 正規化後）、署名、送金フィールドが入ります。別タブやサーバ経由で渡す形式は **アプリ**で決めます（例: state に保持して Executor 接続後に `SendStep` へ渡す）。
+
+## Step 2 — Executor 側: オンチェーン送信
+
+**Executor アカウントに接続し直した状態**で `useSendAuthorizedSingleTransfer` を呼びます。第 1 引数の `signed` は、EIP-712 上の `executor` と **現在の接続アドレス**が一致している必要があります。
+
+```tsx
+import { useSendAuthorizedSingleTransfer } from "eth-twc-sdk-react";
+import type { SignedSingleTransfer } from "eth-twc-sdk-js/signatureTransfer/single";
+
+export function SendStep({ signed }: { signed: SignedSingleTransfer | null }) {
+  const send = useSendAuthorizedSingleTransfer();
+
+  async function run() {
+    if (!signed) return;
+    const txHash = await send.mutateAsync(signed);
+    console.log("tx", txHash);
+  }
+
+  return (
+    <button
+      type="button"
+      disabled={!signed || send.isPending}
+      onClick={() => void run()}
+    >
+      {send.isPending ? "送信中…" : "Executor で送信"}
+    </button>
+  );
+}
+```
+
+中継で届いたペイロードをオブジェクトにしたあと、**型の検証**には JS SDK の `arktype` を使えます（[types（JS）](/sdk-js/api/types) 参照）。`SendStep` には検証済みの `SignedTransferWithCommit` を渡してください。
+
+マイニング後のレシート検証は [Tutorial: レシート検証（verify）](/sdk-react/guides/tutorial-verify) を参照してください。
+
+## Uni / バッチ / キャンセル
+
+| 目的     | 署名フック                         | 送信フック                              |
+| -------- | ---------------------------------- | --------------------------------------- |
+| Uni      | `useSignUniCommitTransfers`        | `useSendAuthorizedUnifiedTransfer`      |
+| Batch    | `useSignBatchTransferWithCommit`   | `useSendAuthorizedBatchTransfer`        |
+| 承認取消 | `useSignCancelAuthorization`       | `useSendCancelAuthorization`            |
+
+各モジュールの引数の違いは [sign（JS）](/sdk-js/api/sign) と [signatureTransfer（JS）](/sdk-js/api/signature-transfer)、および [フック一覧](/sdk-react/api/exports) を参照してください。
+
+## よくあるつまずき
+
+- **`domain.chainId` と RPC のチェーンが違う** — `assertSignedDomainMatchesClientAndConfig` で落ちる（別チェーンの署名を再利用していないか）。
+- **Executor を間違えた** — メッセージの `executor` と送信時の接続アドレスが一致しない。
+- **`from` と署名時の接続アドレスが違う** — `sign` が署名前に例外を投げる、またはオンチェーンで署名不正。
+- **ウォレット未接続で `mutateAsync`** — [narrowWriteClients](/sdk-react/api/clients-errors) が `TWC: connect a wallet to send or sign` 等を投げます。
+
+自己送金（`useSelfTransfer`）の経路は [Tutorial: Self-Call](/sdk-react/guides/tutorial-self-call) を参照してください。

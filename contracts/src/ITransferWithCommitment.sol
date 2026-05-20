@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.13;
+pragma solidity ^0.8.22;
 import "./SelfTransfer/ISelfTransfer.sol";
 import "./SignatureTransfer/ISignatureTransfer.sol";
 import "./State/IState.sol";
 
-interface ITransferWithCommitment is IState, ISelfTransfer, ISignatureTransfer {}
+interface ITransferWithCommitment is ISelfTransfer, ISignatureTransfer {}

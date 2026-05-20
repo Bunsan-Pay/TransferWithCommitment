@@ -1,6 +1,9 @@
-import { arbitrum, mainnet, polygon, sepolia } from "viem/chains";
-
 import { TEST_VERIFIER_CONTRACT } from "./fixtures.ts";
+import {
+  EIP712_DOMAIN_NAME,
+  EIP712_DOMAIN_VERSION,
+  TRANSFER_WITH_COMMITMENT_CREATE2_SALT,
+} from "../../sdk_js/twcConstants.ts";
 
 const ZERO = "0x0000000000000000000000000000000000000000" as const;
 
@@ -20,20 +23,11 @@ export function setSdkConfigAddressZero(): void {
 
 export function buildMockSdkConfigModule() {
   return {
-    ZERO_TRANSFER_ADDRESS: ZERO,
+    EIP712_DOMAIN_NAME,
+    EIP712_DOMAIN_VERSION,
+    TRANSFER_WITH_COMMITMENT_CREATE2_SALT,
     get transferWithCommitmentAddress() {
       return sdkConfigState.transferWithCommitmentAddress;
-    },
-    supportedChains: [mainnet, sepolia, polygon, arbitrum],
-    assertTransferContractConfigured(): void {
-      if (
-        sdkConfigState.transferWithCommitmentAddress.toLowerCase() ===
-        ZERO.toLowerCase()
-      ) {
-        throw new Error(
-          "transferWithCommitmentAddress is not configured (zero address). Set it in config.ts or build-time replacement.",
-        );
-      }
     },
   };
 }

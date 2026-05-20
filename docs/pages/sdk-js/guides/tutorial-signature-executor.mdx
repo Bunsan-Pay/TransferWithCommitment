@@ -1,0 +1,113 @@
+---
+title: "Tutorial: EIP-712 署名と Executor 送信"
+description: sign → signatureTransfer を役割分担付きで実装する（検証は verify チュートリアルへ）。
+---
+
+# Tutorial: EIP-712 + Executor
+
+このフローでは **送金者**がオフチェーンで EIP-712 署名し、**Executor**（別 EOA）が `transferWithAuthorization` を送ります。
+
+## 前提チェックリスト
+
+- [ ] 使っている **npm 版 SDK** が、接続先チェーン上の TWC デプロイと整合している
+- [ ] 送金元がトークンを TWC に `approve` 済み
+- [ ] `signatureTransfer/*/sign` 用 wallet の `account` が EIP-712 の **`from`** と一致
+- [ ] Executor 用 wallet の `account` が EIP-712 の **`executor`** と一致
+- [ ] 両者とも **同一チェーン**の `PublicClient` / `WalletClient`
+
+## Step 0 — 送金者と Executor の準備（例）
+
+送金者用と Executor 用に **別の `WalletClient` / `account`** を用意します（テストでは viem の `privateKeyToAccount` で 2 鍵を用意するのが簡単です）。**同じ `chain`** と **同じ `transport`（RPC）** を両方に渡してください。
+
+```typescript
+import { createPublicClient, createWalletClient, http, type Hex } from "viem";
+import { privateKeyToAccount } from "viem/accounts";
+import { sepolia } from "viem/chains";
+
+const transport = http(process.env.RPC_URL!);
+const publicClient = createPublicClient({ chain: sepolia, transport });
+
+const senderAccount = privateKeyToAccount(process.env.SENDER_KEY as Hex);
+const executorAccount = privateKeyToAccount(process.env.EXECUTOR_KEY as Hex);
+
+const senderWallet = createWalletClient({
+  account: senderAccount,
+  chain: sepolia,
+  transport,
+});
+const executorWallet = createWalletClient({
+  account: executorAccount,
+  chain: sepolia,
+  transport,
+});
+```
+
+## Step 1 — 送金者側: 署名
+
+```typescript
+import { sign as signSingle } from "eth-twc-sdk-js/signatureTransfer/single";
+import type { Hex } from "viem";
+
+const token = "0x…" as Hex;
+const recipient = "0x…" as Hex;
+const value = 1_000_000n;
+const commitment = "0x…" as Hex; // 自前で導出
+
+const signed = await signSingle(
+  publicClient,
+  senderWallet, // signTypedData を実行するウォレット
+  senderAccount.address, // 必ず args.from と同じアドレス
+  {
+    from: senderAccount.address,
+    to: recipient,
+    token,
+    executor: executorAccount.address,
+    value,
+    commitment,
+    // validAfter / validBefore 省略 → 0n / UINT256_MAX
+  },
+);
+```
+
+`signed` には **`domain`**（ゼロ salt 正規化後）、署名、送金フィールドが入ります。別プロセスの Executor に渡すワイヤ形式や `bigint` の扱いは **アプリケーション**で決め、メモリ上ではこのオブジェクトをそのまま（または I/O 後に **`signedDataSchema.assert`** で検証してから）送信に回します。
+
+## Step 2 — Executor 側: オンチェーン送信
+
+```typescript
+import {
+  signedDataSchema,
+  sendTx as sendAuthorized,
+} from "eth-twc-sdk-js/signatureTransfer/single";
+
+// 中継で届いた値はアプリ側で parse 済みとし、必要なら検証してから渡す
+signedDataSchema.assert(signed);
+
+const txHash = await sendAuthorized(
+  publicClient,
+  executorWallet,
+  executorAccount.address,
+  signed,
+);
+
+await publicClient.waitForTransactionReceipt({ hash: txHash });
+```
+
+`sendAuthorized` の第 3 引数 **`account`**（第 1・第 2 引数は `publicClient`・`WalletClient`）は **Executor** のアドレスです。第 4 引数は署名済みバンドル。第 3 引数が EIP-712 の `executor` と一致していないと失敗します。
+
+マイニング後のレシート検証は [Tutorial: レシート検証（verify）](/sdk-js/guides/tutorial-verify) を参照してください。
+
+## Uni / バッチ / キャンセル
+
+| 目的     | sign（インポート元）                                         | send（インポート元）                                   |
+| -------- | ------------------------------------------------------------ | ------------------------------------------------------ |
+| Uni      | `signatureTransfer/unified` の `sign`                      | `signatureTransfer/unified` の `sendTx`                |
+| Batch    | `signatureTransfer/batch` の `sign`                        | `signatureTransfer/batch` の `sendTx`                   |
+| 承認取消 | `signatureTransfer/cancelAuthorization` の `sign`            | `signatureTransfer/cancelAuthorization` の `sendTx`   |
+
+詳細は [署名](/sdk-js/api/sign) と [送信](/sdk-js/api/signature-transfer) を参照してください。
+
+## よくあるつまずき
+
+- **`domain.chainId` と RPC のチェーンが違う** — `assertSignedDomainMatchesClientAndConfig` で落ちる（別チェーンの署名を再利用していないか）。
+- **Executor を間違えた** — メッセージの `executor` と送信ウォレットが一致しない。
+- **`from` と署名ウォレットが違う** — `signatureTransfer/*/sign` が署名前に例外を投げる、またはオンチェーンで署名不正。

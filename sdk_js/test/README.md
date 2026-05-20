@@ -15,7 +15,7 @@ bun run test
 
 ## 結合（`integration/`）
 
-docker compose（リポジトリルートの [`docker/compose.yml`](../../docker/compose.yml)）で `anvil` サービスを起動し、`forge script`（`TransferWithCommitmentScript`）と `forge create`（`ERC20Mock`）でデプロイした後、環境変数経由でアドレスを渡して SDK を実行する。**本番 `config` の `supportedChains` には Anvil（chain id 31337）が含まれない**ため、`integration/preload.ts` が `config` をモックし、`supportedChains: [anvil]`（viem の `anvil` チェーン定義）とデプロイ済みの `TWC_ADDRESS` を注入する。
+docker compose（リポジトリルートの [`docker/compose.yml`](../../docker/compose.yml)）で `anvil` を起動し、`forge script` と `forge create`（`ERC20Mock`）でデプロイした後、環境変数でアドレスを渡して SDK を実行する。`integration/preload.ts` が `config` をモックし、**テスト用チェーン**（viem の `anvil`）とデプロイ済み `TWC_ADDRESS` を注入する。
 
 | 変数（エントリポイントが設定） | 意味 |
 |-------------------------------|------|

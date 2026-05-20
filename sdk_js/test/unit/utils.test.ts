@@ -2,11 +2,10 @@ import { describe, expect, test } from "bun:test";
 import { mainnet, polygon } from "viem/chains";
 import type { PublicClient, WalletClient } from "viem";
 import {
-  assertPublicWalletSameSupportedChain,
+  assertPublicWalletSameChain,
   assertSignedDomainMatchesClientAndConfig,
   assertSignerMatchesEip712Role,
   chainIdToBig,
-  isSupportedChain,
 } from "../../utils.ts";
 import type { Hex } from "viem";
 import { ADDR, ADDR_B, TEST_VERIFIER_CONTRACT, testDomain } from "./fixtures.ts";
@@ -19,45 +18,24 @@ describe("chainIdToBig", () => {
   });
 });
 
-describe("isSupportedChain", () => {
-  test("supportedChains に含まれる chain.id なら真", () => {
-    const c = { chain: mainnet } as unknown as PublicClient;
-    expect(isSupportedChain(c)).toBe(true);
-  });
-
-  test("未対応の id なら偽", () => {
-    const c = { chain: { id: 999999 } } as unknown as PublicClient;
-    expect(isSupportedChain(c)).toBe(false);
-  });
-
-  test("chain が undefined なら偽", () => {
-    const c = { chain: undefined } as unknown as PublicClient;
-    expect(isSupportedChain(c)).toBe(false);
-  });
-});
-
-describe("assertPublicWalletSameSupportedChain", () => {
+describe("assertPublicWalletSameChain", () => {
   test("同一 mainnet なら通る", () => {
     const p = { chain: mainnet } as unknown as PublicClient;
     const w = { chain: mainnet } as unknown as WalletClient;
-    expect(() =>
-      assertPublicWalletSameSupportedChain(p, w),
-    ).not.toThrow();
+    expect(() => assertPublicWalletSameChain(p, w)).not.toThrow();
   });
 
   test("Public と Wallet の chain.id が異なれば例外", () => {
     const p = { chain: mainnet } as unknown as PublicClient;
     const w = { chain: polygon } as unknown as WalletClient;
-    expect(() => assertPublicWalletSameSupportedChain(p, w)).toThrow(
-      /chain mismatch/,
-    );
+    expect(() => assertPublicWalletSameChain(p, w)).toThrow(/chain mismatch/);
   });
 
-  test("いずれかが非対応チェーンなら Unsupported chain", () => {
+  test("いずれかで chain が未設定なら例外", () => {
     const p = { chain: mainnet } as unknown as PublicClient;
-    const w = { chain: { id: 99999, name: "x" } } as unknown as WalletClient;
-    expect(() => assertPublicWalletSameSupportedChain(p, w)).toThrow(
-      /Unsupported chain/,
+    const w = { chain: undefined } as unknown as WalletClient;
+    expect(() => assertPublicWalletSameChain(p, w)    ).toThrow(
+      /Chain is not set on public client and\/or wallet client/,
     );
   });
 });
@@ -119,7 +97,7 @@ describe("assertSignedDomainMatchesClientAndConfig", () => {
     ).toThrow(/verifyingContract/);
   });
 
-  test("chain が未設定なら Unsupported chain", () => {
+  test("chain が未設定なら例外", () => {
     const p = { chain: undefined } as unknown as PublicClient;
     const d = testDomain();
     expect(() =>
@@ -128,6 +106,6 @@ describe("assertSignedDomainMatchesClientAndConfig", () => {
         d,
         TEST_VERIFIER_CONTRACT,
       ),
-    ).toThrow(/Unsupported chain/);
+    ).toThrow(/Chain is not set on public client/);
   });
 });

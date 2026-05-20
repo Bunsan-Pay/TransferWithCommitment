@@ -1,5 +1,8 @@
 import { renderHook, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, mock, test } from "bun:test";
+import { transferWithCommitmentAbi } from "eth-twc-sdk-js/abi";
+import { transferWithCommitmentAddress } from "eth-twc-sdk-js/config";
+import { encodeAbiParameters, encodeEventTopics } from "viem";
 import { mainnet } from "viem/chains";
 import type { Chain, Hex, PublicClient } from "viem";
 
@@ -57,7 +60,9 @@ describe("useVerifyTransfer", () => {
 
   test("sdk_js: config ゼロでは verify が失敗して query error", async () => {
     setSdkConfigAddressZero();
-    wagmiState.publicClient = stubPublicClient();
+    wagmiState.publicClient = stubPublicClient({
+      getCode: async () => "0x",
+    }) as unknown as PublicClient;
     const qc = createTestQueryClient();
     const { result } = renderHook(
       () => useVerifyTransfer(TX, validVerifyArgs),
@@ -65,7 +70,7 @@ describe("useVerifyTransfer", () => {
     );
     await waitFor(() => expect(result.current.isError).toBe(true));
     expect(String(result.current.error?.message)).toMatch(
-      /not configured \(zero address\)/,
+      /not deployed at/,
     );
   });
 
@@ -107,9 +112,15 @@ describe("useVerifyTransfer", () => {
     );
   });
 
-  test("未対応チェーンでは Unsupported chain", async () => {
+  test("例外的な chain id でも TWC デプロイ済みなら verify はレシートまで進む", async () => {
+    const getTransactionReceipt = mock(() =>
+      Promise.resolve({
+        logs: [],
+      }),
+    ) as unknown as PublicClient["getTransactionReceipt"];
     wagmiState.publicClient = stubPublicClient({
-      chain: { id: 999_998, name: "UnsupportedTest" } as unknown as Chain,
+      chain: { id: 999_998, name: "CustomTest" } as unknown as Chain,
+      getTransactionReceipt,
     }) as unknown as PublicClient;
 
     const qc = createTestQueryClient();
@@ -118,7 +129,45 @@ describe("useVerifyTransfer", () => {
       { wrapper: createQueryWrapper(qc) },
     );
     await waitFor(() => expect(result.current.isError).toBe(true));
-    expect(result.current.error?.message).toMatch(/Unsupported chain/);
+    expect(result.current.error?.message).toMatch(
+      /TransferWithCommitmentSent event not found/,
+    );
+  });
+
+  test("成功時は TanStack Query 用に null を data として返す", async () => {
+    const getTransactionReceipt = mock(() =>
+      Promise.resolve({
+        logs: [
+          {
+            address: transferWithCommitmentAddress,
+            topics: encodeEventTopics({
+              abi: transferWithCommitmentAbi,
+              eventName: "TransferWithCommitmentSent",
+              args: {
+                from: validVerifyArgs.from,
+                to: validVerifyArgs.to,
+                token: validVerifyArgs.token,
+              },
+            }),
+            data: encodeAbiParameters(
+              [{ type: "uint256" }, { type: "bytes32" }],
+              [validVerifyArgs.value, validVerifyArgs.commitment],
+            ),
+          },
+        ],
+      }),
+    ) as unknown as PublicClient["getTransactionReceipt"];
+    wagmiState.publicClient = stubPublicClient({
+      getTransactionReceipt,
+    }) as unknown as PublicClient;
+
+    const qc = createTestQueryClient();
+    const { result } = renderHook(
+      () => useVerifyTransfer(TX, validVerifyArgs),
+      { wrapper: createQueryWrapper(qc) },
+    );
+    await waitFor(() => expect(result.current.isSuccess).toBe(true));
+    expect(result.current.data).toBeNull();
   });
 });
 
@@ -130,14 +179,16 @@ describe("useTransferWithCommitmentSentLogs", () => {
 
   test("config ゼロでは assert が失敗", async () => {
     setSdkConfigAddressZero();
-    wagmiState.publicClient = stubPublicClient();
+    wagmiState.publicClient = stubPublicClient({
+      getCode: async () => "0x",
+    }) as unknown as PublicClient;
     const qc = createTestQueryClient();
     const { result } = renderHook(() => useTransferWithCommitmentSentLogs(TX), {
       wrapper: createQueryWrapper(qc),
     });
     await waitFor(() => expect(result.current.isError).toBe(true));
     expect(String(result.current.error?.message)).toMatch(
-      /not configured \(zero address\)/,
+      /not deployed at/,
     );
   });
 

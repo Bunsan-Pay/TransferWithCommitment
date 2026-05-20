@@ -1,0 +1,169 @@
+---
+title: Getting Started — React SDK
+description: import・Providers・チェーン / デプロイ・送金・レシート検証（verify）まで。
+---
+
+# Getting Started
+
+React SDK は **wagmi のコンテキスト**と **TanStack Query** の上で動くフックを提供します。セットアップの全体像は JS / Rust の Getting Started と同じ流れ（import → 接続クライアント相当 → チェーン確認 → 最初の送金）で捉えると分かりやすいです。
+
+## 1. import のルール
+
+フックや定数は **`eth-twc-sdk-react` のパッケージ根**から import します（[エクスポート一覧](/sdk-react/api/exports) に載っている名前のみが公開 API です）。
+
+```tsx
+import { useSelfTransfer, transferWithCommitmentAddress } from "eth-twc-sdk-react";
+```
+
+引数の型・EIP-712・検証ロジックの多くは **peer の `eth-twc-sdk-js`** にあります。型や低レベル API だけ必要なときは [6. 型だけ欲しいとき](#6-型だけ欲しいとき) のとおり `eth-twc-sdk-js` のサブパスから import してください。
+
+## 2. Providers（wagmi と TanStack Query）
+
+フックは **`WagmiProvider` の内側**で呼び出す必要があります。ミューテーションとクエリは **`QueryClientProvider`** も必須です。
+
+:::code-group
+
+```tsx [AppProvider.tsx]
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { WagmiProvider } from "wagmi";
+import { config } from "./wagmiConfig";
+
+const queryClient = new QueryClient();
+
+export function Providers({ children }: { children: React.ReactNode }) {
+  return (
+    <WagmiProvider config={config}>
+      <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
+    </WagmiProvider>
+  );
+}
+```
+
+```typescript [wagmiConfig.ts]
+import { createConfig, http } from "wagmi";
+import { mainnet, sepolia } from "viem/chains";
+
+export const config = createConfig({
+  chains: [mainnet, sepolia],
+  transports: {
+    [mainnet.id]: http(),
+    [sepolia.id]: http(),
+  },
+});
+```
+
+:::
+
+詳細は [Providers をセットアップする](/sdk-react/guides/providers-setup) を参照してください。
+
+## 3. チェーンと TWC デプロイ
+
+`createConfig` の `chains` には **接続したいネットワーク**の viem `chain` を載せてください。SDK はチェーン allowlist を持ちませんが、署名・送信・検証では **canonical TWC が `eth_getCode` で存在する**ことと、**`chain.id` が揃っている**ことが必要です。
+
+- **`useIsTransferWithCommitmentDeployed()`** — 現在の `usePublicClient()` 上で TWC がデプロイ済みか（`getCode`）を `useQuery` で判定（別名 `useIsSupportedChain`）
+
+## 4. 最初の送金の骨格（Self-Call と SignatureTransfer）
+
+トークンの **`approve`**・canonical TWC のデプロイ・ウォレット接続を満たしたうえでの概形です。`token` / `to` / `commitment` などは自分の環境の値に差し替えてください。
+
+:::code-group
+
+```tsx [Self-Call — useSelfTransfer]
+import { useSelfTransfer } from "eth-twc-sdk-react";
+
+export function SendOnce() {
+  const { mutateAsync, isPending } = useSelfTransfer();
+  return (
+    <button
+      type="button"
+      disabled={isPending}
+      onClick={() =>
+        void mutateAsync({
+          token: "0x…",
+          to: "0x…",
+          value: 1n,
+          commitment: "0x…",
+        })
+      }
+    >
+      {isPending ? "送信中…" : "送金"}
+    </button>
+  );
+}
+```
+
+```tsx [SignatureTransfer — 署名 → Executor 送信]
+import {
+  useSendAuthorizedSingleTransfer,
+  useSignSingleTransfer,
+} from "eth-twc-sdk-react";
+import type { SignatureTransferSingleArgs } from "eth-twc-sdk-js/signatureTransfer/single";
+
+export function SignAndRelay() {
+  const sign = useSignSingleTransfer();
+  const send = useSendAuthorizedSingleTransfer();
+
+  async function run() {
+    const args: SignatureTransferSingleArgs = {
+      from: "0x…",
+      to: "0x…",
+      token: "0x…",
+      executor: "0x…",
+      value: 1n,
+      commitment: "0x…",
+    };
+    const signed = await sign.mutateAsync(args);
+    await send.mutateAsync(signed);
+  }
+
+  return (
+    <button
+      type="button"
+      disabled={sign.isPending || send.isPending}
+      onClick={() => void run()}
+    >
+      署名して送信
+    </button>
+  );
+}
+```
+
+:::
+
+`commitment` は [Commitment（React）](/sdk-react/guides/commitment) のとおり **アプリ側で導出**します。
+
+手順付きの流れは [Tutorial: Self-Call](/sdk-react/guides/tutorial-self-call)（接続・`approve`）と [Tutorial: EIP-712 + Executor](/sdk-react/guides/tutorial-signature-executor)（署名者と Executor の分離・接続切り替え）を参照してください。マイニング後の照合は [Tutorial: レシート検証（verify）](/sdk-react/guides/tutorial-verify) です。
+
+[フック一覧](/sdk-react/api/exports) と [フック詳細](/sdk-react/api/hooks) で `queryKey` や異常系を確認できます。
+
+## 5. レシート検証（verify）
+
+送金ミューテーションが返した **`txHash`** について、マイニング後に **`useVerifyTransfer`** でレシートと期待パラメータを照合できます（内部で JS SDK の `verify`）。**Self-Call でも SignatureTransfer でも同じフック**です。
+
+```tsx
+import { useVerifyTransfer } from "eth-twc-sdk-react";
+
+const q = useVerifyTransfer(txHash, {
+  from: "0x…",
+  to: "0x…",
+  token: "0x…",
+  value: 1n,
+  commitment: "0x…",
+});
+```
+
+`txHash` または第 2 引数が `undefined` のときはクエリは **`enabled: false`**（自動実行しません）。成功時の **`data` は `null`** です。詳細は [フックリファレンス](/sdk-react/api/hooks) の検証・ログ節と [Tutorial: レシート検証（verify）](/sdk-react/guides/tutorial-verify)、[verify（JS API）](/sdk-js/api/verify) を参照してください。
+
+## 6. 型だけ欲しいとき
+
+React パッケージは型の再エクスポートを最小限にしているため、引数・署名バンドル型は **`eth-twc-sdk-js` のサブパス**から取るのが一般的です（JS Getting Started と同じパターンです）。
+
+```typescript
+import type { SelfTransferSingleArgs } from "eth-twc-sdk-js/selfTransfer/single";
+import type {
+  SignedSingleTransfer,
+  SignatureTransferSingleArgs,
+} from "eth-twc-sdk-js/signatureTransfer/single";
+```
+
+各 variant で **`argsSchema` / `signedDataSchema`** が対になります。[型と arktype（JS SDK）](/sdk-js/api/types) を参照してください。

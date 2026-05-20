@@ -1,0 +1,38 @@
+---
+title: Import パス（package.json exports）
+description: eth-twc-sdk-js で利用できる全サブパスと用途。
+---
+
+# Import パス一覧
+
+`eth-twc-sdk-js` には **`"eth-twc-sdk-js"` という単一のエントリはありません**。`package.json` の `exports` フィールドに列挙された **パスのみ**が解決されます（漏れたパスは import 解決エラーになります）。
+
+以下は **実際の export キー**と、その用途です。パッケージは **`single` / `batch` / `unified`（EIP-712 上では UniCommitTransfers）ごとに** `signatureTransfer` と `selfTransfer` を分割しています。
+
+| Import パス | 内容 |
+| --- | --- |
+| `eth-twc-sdk-js/config` | `transferWithCommitmentAddress`、CREATE2 salt、EIP-712 定数。[Contributing: 内部 API](/contributing/sdk-js-internals) |
+| `eth-twc-sdk-js/abi` | `transferWithCommitmentAbi`（コントラクト ABI の再エクスポート） |
+| `eth-twc-sdk-js/verify` | `verify`, `getTransferWithCommitmentSentEventLogs`, `verifyArgsSchema`, `VerifyArgs` |
+| `eth-twc-sdk-js/utils` | `chainIdToBig`, `assertPublicWalletSameChain`, `assertTransferContractDeployed`, `assertEip712DomainFromContractMatchesExpected`, `assertSignerMatchesEip712Role`, `assertSignedDomainMatchesClientAndConfig`（後方互換の `assertPublicWalletSameSupportedChain` など） |
+| `eth-twc-sdk-js/types/utils` | arktype `address`, `bytes32`, `bytes`, `uint256`, `UINT256_MAX`, `Hex0x` |
+| `eth-twc-sdk-js/types/transferDetail` | `transferDetail`, `committedTransferDetail` — Self-Call / 署名ともに使う明細行 arktype |
+| `eth-twc-sdk-js/selfTransfer/single` | Self-Call 単一路: `sendTx`, `argsSchema`, `SelfTransferSingleArgs` |
+| `eth-twc-sdk-js/selfTransfer/batch` | Self-Call バッチ: `sendTx`, `argsSchema`, `SelfTransferBatchArgs` |
+| `eth-twc-sdk-js/selfTransfer/unified` | Self-Call UniCommit 相当: `sendTx`, `argsSchema`, `SelfTransferUnifiedArgs` |
+| `eth-twc-sdk-js/signatureTransfer/single` | EIP-712 `TransferWithCommit`: `sign`, `sendTx`, `argsSchema`, `signedDataSchema`, `eip712Types`, 型一式 |
+| `eth-twc-sdk-js/signatureTransfer/batch` | EIP-712 `BatchTransferWithCommit`: 同上構成 |
+| `eth-twc-sdk-js/signatureTransfer/unified` | EIP-712 `UniCommitTransfers`（公開語彙 **`unified`**）: 同上構成 |
+| `eth-twc-sdk-js/signatureTransfer/cancelAuthorization` | EIP-712 `CancelAuthorization`: 同上構成（Self-Call は無い） |
+
+**型だけ欲しい**ときは `import type { … } from "…"` を使い、実行時の arktype が不要な層では型だけ import して構いません。
+
+詳細リファレンス:
+
+- [utils](/sdk-js/api/utils)（チェーン整合・デプロイ検証）
+- 内部 `config` 定数: [Contributing](/contributing/sdk-js-internals)
+- [署名 EIP-712（signatureTransfer/\* の `sign`）](/sdk-js/api/sign)
+- [verify](/sdk-js/api/verify)
+- [selfTransfer/\*](/sdk-js/api/self-transfer)
+- [signatureTransfer/\* の `sendTx`](/sdk-js/api/signature-transfer)
+- [型と arktype](/sdk-js/api/types)

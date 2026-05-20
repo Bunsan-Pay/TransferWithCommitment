@@ -1,0 +1,25 @@
+---
+title: Hooks と JS SDK の対応表
+description: どのフックがどのモジュールを呼ぶかの早見表。
+---
+
+# Hooks と `eth-twc-sdk-js` の対応
+
+| React フック | 内部で呼ぶモジュール・関数 |
+| --- | --- |
+| `useSelfTransfer` | `selfTransfer/single` の `sendTx` |
+| `useSelfUnifiedTransfer` | `selfTransfer/unified` の `sendTx` |
+| `useSelfBatchTransfer` | `selfTransfer/batch` の `sendTx` |
+| `useSignSingleTransfer` | `signatureTransfer/single` の `sign` |
+| `useSignUniCommitTransfers` | `signatureTransfer/unified` の `sign` |
+| `useSignBatchTransferWithCommit` | `signatureTransfer/batch` の `sign` |
+| `useSignCancelAuthorization` | `signatureTransfer/cancelAuthorization` の `sign` |
+| `useSendAuthorizedSingleTransfer` | `signatureTransfer/single` の `sendTx` |
+| `useSendAuthorizedUnifiedTransfer` | `signatureTransfer/unified` の `sendTx` |
+| `useSendAuthorizedBatchTransfer` | `signatureTransfer/batch` の `sendTx` |
+| `useSendCancelAuthorization` | `signatureTransfer/cancelAuthorization` の `sendTx` |
+| `useVerifyTransfer` | `verify.verify` |
+| `useTransferWithCommitmentSentLogs` | `verify.getTransferWithCommitmentSentEventLogs` |
+| `useIsTransferWithCommitmentDeployed`（別名 `useIsSupportedChain`） | canonical TWC アドレスの `getCode` |
+
+引数型・戻り値の**細部**は [フック完全リファレンス](/sdk-react/api/hooks) を参照してください。

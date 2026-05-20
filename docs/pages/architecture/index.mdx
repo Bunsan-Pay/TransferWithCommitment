@@ -1,0 +1,32 @@
+---
+title: Architecture
+description: TransferWithCommitment の全体像とドキュメントの読み方。
+---
+
+# Architecture（全体像）
+
+**TransferWithCommitment（TWC）** は、ERC-20 の送金に **`bytes32` の commitment** を必ず結びつけ、その事実を **`TransferWithCommitmentSent` イベント**に載せるプロトコルです。送金経路は大きく **Self-Call**（送信者が自分で `transfer`）と **Signature-Transfer**（EIP-712 署名を Executor が `transferWithAuthorization` で実行）に分かれます。
+
+## この章の構成
+
+| ページ | 内容 |
+| --- | --- |
+| [Fundamentals](/architecture/fundamentals) | 特徴・プロトコル要件・用語の土台 |
+| [構成図](/architecture/overview-graphs) | Self-Call / Signature-Transfer / SDK-コントラクト間の構成図（Mermaid） |
+| [シーケンス図](/architecture/sequences) | Self-Call、Executor 委任、Verifier 実行の 3 パターン |
+| [リポジトリマップ](/architecture/repository-map) | `contracts` / `sdk_*` などディレクトリの役割 |
+
+**リポジトリの開発者向け**（CI・SDK 公開アドレス埋め込み・モノレポ規約）のページは **[Contributing](/contributing)** に分離しています。
+
+オンチェーンの **ファイル単位・関数単位**の説明は **[Contracts](/contracts)** 側にまとめています。
+
+## 用語集
+
+| 用語 | 意味（本ドキュメント内） |
+| --- | --- |
+| **commitment** | 送金事実に結びつく `bytes32`（具体の導出関数 *H* はアプリ層が決定） |
+| **TWC** | `TransferWithCommitment` コントラクト |
+| **Self-Call** | 送金者が自分で `transfer` を送る経路（オフチェーン EIP-712 署名は不要） |
+| **委任** / **Signature-Transfer** | EIP-712 署名を Executor（Tx 送信者）が `transferWithAuthorization` で実行する経路 |
+| **Executor** | 委任経路でトランザクションをブロードキャストする EOA 等（メッセージ上の `executor` と一致が必要） |
+| **One-Time Receive-Verify** | シーケンス図のパターンの一つ。Verifier が署名検証と送金実行の両方を担う想定（[シーケンス図](/architecture/sequences)） |
