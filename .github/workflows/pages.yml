@@ -40,6 +40,9 @@ jobs:
         run: bunx playwright install chromium
         working-directory: docs
 
+      - name: Build sdk_js (demo bundle resolves package exports → dist/)
+        run: bun run sdk:build
+
       - name: Build docs
         run: bun run docs:build
         env:

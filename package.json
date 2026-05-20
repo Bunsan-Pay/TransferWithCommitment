@@ -3,8 +3,9 @@
   "workspaces": ["sdk_js", "sdk_react", "contracts", "docs", "demo"],
   "scripts": {
     "demo:dev": "bun run --filter twc-demo dev",
-    "demo:build": "bun run --filter twc-demo build",
+    "demo:build": "bun run sdk:build && bun run --filter twc-demo build",
     "demo:typecheck": "bun run --filter twc-demo typecheck",
+    "sdk:build": "bun run --filter eth-twc-sdk-js build",
     "docs:dev": "bun run --filter twc-docs dev",
     "docs:build": "bun run --filter twc-docs build",
     "docs:preview": "bun run --filter twc-docs preview",
