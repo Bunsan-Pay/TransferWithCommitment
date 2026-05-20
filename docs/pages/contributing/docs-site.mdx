@@ -51,6 +51,8 @@ bun run docs:build
 
 **ビルドが Mermaid 用の Playwright で失敗する場合**（`playwright install` を求められる）: `docs/` で `bunx playwright install chromium` を実行するか、初回は `bun install` 後の `postinstall` に任せてください（`docs/package.json` の `playwright`）。
 
+**`globSync` / Node バージョン**: `vocs build` は **Node 22 以上**が必要です（CI の Pages workflow では `setup-node` で指定済み）。
+
 ## 関連
 
 - モノレポの CI: [CI と開発フロー](/contributing/monorepo-ci)
