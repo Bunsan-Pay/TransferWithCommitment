@@ -9,7 +9,7 @@
 <a href=#9 id=9 data-nosnippet>9</a>//! 3. **送金** — EIP-712 委任なら [`sign`] で署名バンドルを作り [`send_transaction::signature_transfer`] で送信。`msg.sender` 送金なら [`send_transaction::self_transfer`] を直接呼びます。
 <a href=#10 id=10 data-nosnippet>10</a>//! 4. **検証** — マイニング後のトランザクションハッシュと [`VerifyArgs`] で [`verify`] を呼び、レシート上の `TransferWithCommitmentSent` を照合します。
 <a href=#11 id=11 data-nosnippet>11</a>//!
-<a href=#12 id=12 data-nosnippet>12</a>//! `msg.sender` で送金して検証する例（TWC が [`config`] に設定済みで、RPC が対応チェーンであること）。
+<a href=#12 id=12 data-nosnippet>12</a>//! `msg.sender` で送金して検証する例（接続チェーンの [`config::transfer_with_commitment_address`] に TWC がデプロイ済みであること）。
 <a href=#13 id=13 data-nosnippet>13</a>//!
 <a href=#14 id=14 data-nosnippet>14</a>//! ```ignore
 <a href=#15 id=15 data-nosnippet>15</a>//! use alloy::primitives::{address, utils::parse_ether, B256};
@@ -126,67 +126,73 @@
 <a href=#126 id=126 data-nosnippet>126</a>//! }
 <a href=#127 id=127 data-nosnippet>127</a>//! ```
 <a href=#128 id=128 data-nosnippet>128</a>//!
-<a href=#129 id=129 data-nosnippet>129</a>//! ## 構成
+<a href=#129 id=129 data-nosnippet>129</a>//! ## Commitment（`B256`）の導出 — 利用者向け注意
 <a href=#130 id=130 data-nosnippet>130</a>//!
-<a href=#131 id=131 data-nosnippet>131</a>//! | モジュール | 役割 |
-<a href=#132 id=132 data-nosnippet>132</a>//! |------------|------|
-<a href=#133 id=133 data-nosnippet>133</a>//! | [`config`] | コントラクトアドレス・対応チェーン ID |
-<a href=#134 id=134 data-nosnippet>134</a>//! | [`sign`] | EIP-712 署名（[`Provider`](alloy::providers::Provider) + [`Signer`](alloy::signers::Signer)） |
-<a href=#135 id=135 data-nosnippet>135</a>//! | [`verify`] | トランザクションレシート上のイベント検証 |
-<a href=#136 id=136 data-nosnippet>136</a>//! | [`send_transaction::self_transfer`] | `msg.sender` による `transfer` |
-<a href=#137 id=137 data-nosnippet>137</a>//! | [`send_transaction::signature_transfer`] | 署名付き `transferWithAuthorization` / `cancelAuthorization` |
-<a href=#138 id=138 data-nosnippet>138</a>//! | [`types`] | 引数・署名済みバンドル・明細型 |
-<a href=#139 id=139 data-nosnippet>139</a>//! | [`utils`] | チェーン／domain 整合の検証ヘルパ |
-<a href=#140 id=140 data-nosnippet>140</a>//! | [`events`] | ログデコード用イベント型 |
-<a href=#141 id=141 data-nosnippet>141</a>//!
-<a href=#142 id=142 data-nosnippet>142</a>//! オンチェーン呼び出し・型生成は **alloy** に依存します。
-<a href=#143 id=143 data-nosnippet>143</a>//!
-<a href=#144 id=144 data-nosnippet>144</a>//! ## クイックリンク
-<a href=#145 id=145 data-nosnippet>145</a>//!
-<a href=#146 id=146 data-nosnippet>146</a>//! - エラー型: [`SdkError`]
-<a href=#147 id=147 data-nosnippet>147</a>//! - 検証用イベント引数: [`VerifyArgs`]
-<a href=#148 id=148 data-nosnippet>148</a>//!
-<a href=#149 id=149 data-nosnippet>149</a>//! ## ドキュメントの生成
-<a href=#150 id=150 data-nosnippet>150</a>//!
-<a href=#151 id=151 data-nosnippet>151</a>//! ```text
-<a href=#152 id=152 data-nosnippet>152</a>//! cargo doc --no-deps
-<a href=#153 id=153 data-nosnippet>153</a>//! ```
+<a href=#131 id=131 data-nosnippet>131</a>//! 本クレートは **`commitment` を生成するヘルパを提供しない**。理由は、(1) 外部とランダム nonce を共有するスキームなど、アプリ層のスキーマとの**相互運用性**を SDK で固定しないため、(2) ハッシュ関数の選択を SDK に押し付けず、**ハッシュに関する単一障害点**にならないためである。
+<a href=#132 id=132 data-nosnippet>132</a>//!
+<a href=#133 id=133 data-nosnippet>133</a>//! オフチェーンで `commitment` を導出するときは、利用者の責任で **暗号学的にランダムな `r`** と、用途に適した**安全なハッシュ関数 `H`** を選び、少なくとも **`commitment = H(message || r)`** の形（`message` はアプリのスキーマに従うバイト列）を満たすことを推奨する。`H` の具体（例: Keccak-256）や `message` のエンコードは、アプリと合意者間で定義する。
+<a href=#134 id=134 data-nosnippet>134</a>//!
+<a href=#135 id=135 data-nosnippet>135</a>//! ## 構成
+<a href=#136 id=136 data-nosnippet>136</a>//!
+<a href=#137 id=137 data-nosnippet>137</a>//! | モジュール | 役割 |
+<a href=#138 id=138 data-nosnippet>138</a>//! |------------|------|
+<a href=#139 id=139 data-nosnippet>139</a>//! | [`config`] | 決定論 TWC アドレス・EIP-712 / CREATE2 salt 定数 |
+<a href=#140 id=140 data-nosnippet>140</a>//! | [`sign`] | EIP-712 署名（[`Provider`](alloy::providers::Provider) + [`Signer`](alloy::signers::Signer)） |
+<a href=#141 id=141 data-nosnippet>141</a>//! | [`verify`] | トランザクションレシート上のイベント検証 |
+<a href=#142 id=142 data-nosnippet>142</a>//! | [`send_transaction::self_transfer`] | `msg.sender` による `transfer` |
+<a href=#143 id=143 data-nosnippet>143</a>//! | [`send_transaction::signature_transfer`] | 署名付き `transferWithAuthorization` / `cancelAuthorization` |
+<a href=#144 id=144 data-nosnippet>144</a>//! | [`types`] | 引数・署名済みバンドル・明細型 |
+<a href=#145 id=145 data-nosnippet>145</a>//! | [`utils`] | チェーン／domain 整合の検証ヘルパ |
+<a href=#146 id=146 data-nosnippet>146</a>//! | [`events`] | ログデコード用イベント型 |
+<a href=#147 id=147 data-nosnippet>147</a>//!
+<a href=#148 id=148 data-nosnippet>148</a>//! オンチェーン呼び出し・型生成は **alloy** に依存します。
+<a href=#149 id=149 data-nosnippet>149</a>//!
+<a href=#150 id=150 data-nosnippet>150</a>//! ## クイックリンク
+<a href=#151 id=151 data-nosnippet>151</a>//!
+<a href=#152 id=152 data-nosnippet>152</a>//! - エラー型: [`SdkError`]（署名 API は [`SdkError::FromSignerMismatch`] / [`SdkError::AuthorizerSignerMismatch`] で `from` / `authorizer` と署名キーの不一致を検出）
+<a href=#153 id=153 data-nosnippet>153</a>//! - 検証用イベント引数: [`VerifyArgs`]
 <a href=#154 id=154 data-nosnippet>154</a>//!
-<a href=#155 id=155 data-nosnippet>155</a>//! 非公開モジュール（`contract` など）を含める場合は `--document-private-items` を付けます。
-<a href=#156 id=156 data-nosnippet>156</a>
-<a href=#157 id=157 data-nosnippet>157</a></span><span class="kw">pub mod </span>config;
-<a href=#158 id=158 data-nosnippet>158</a>
-<a href=#159 id=159 data-nosnippet>159</a><span class="kw">pub use </span>config::transfer_with_commitment_address;
-<a href=#160 id=160 data-nosnippet>160</a><span class="kw">pub mod </span>error;
-<a href=#161 id=161 data-nosnippet>161</a><span class="kw">pub mod </span>sign;
-<a href=#162 id=162 data-nosnippet>162</a><span class="kw">pub mod </span>types;
-<a href=#163 id=163 data-nosnippet>163</a><span class="kw">pub mod </span>utils;
-<a href=#164 id=164 data-nosnippet>164</a><span class="kw">pub mod </span>verify;
-<a href=#165 id=165 data-nosnippet>165</a>
-<a href=#166 id=166 data-nosnippet>166</a><span class="doccomment">/// レシート解析用の `sol!` イベント定義。
-<a href=#167 id=167 data-nosnippet>167</a></span><span class="kw">pub mod </span>events;
-<a href=#168 id=168 data-nosnippet>168</a>
-<a href=#169 id=169 data-nosnippet>169</a><span class="doccomment">/// トランザクション送信（自己送金・署名付き）。
-<a href=#170 id=170 data-nosnippet>170</a></span><span class="kw">pub mod </span>send_transaction;
+<a href=#155 id=155 data-nosnippet>155</a>//! ## ドキュメントの生成
+<a href=#156 id=156 data-nosnippet>156</a>//!
+<a href=#157 id=157 data-nosnippet>157</a>//! ```text
+<a href=#158 id=158 data-nosnippet>158</a>//! cargo doc --no-deps
+<a href=#159 id=159 data-nosnippet>159</a>//! ```
+<a href=#160 id=160 data-nosnippet>160</a>//!
+<a href=#161 id=161 data-nosnippet>161</a>//! 非公開モジュール（`contract` など）を含める場合は `--document-private-items` を付けます。
+<a href=#162 id=162 data-nosnippet>162</a>
+<a href=#163 id=163 data-nosnippet>163</a></span><span class="kw">pub mod </span>config;
+<a href=#164 id=164 data-nosnippet>164</a>
+<a href=#165 id=165 data-nosnippet>165</a><span class="kw">pub use </span>config::transfer_with_commitment_address;
+<a href=#166 id=166 data-nosnippet>166</a><span class="kw">pub mod </span>error;
+<a href=#167 id=167 data-nosnippet>167</a><span class="kw">pub mod </span>sign;
+<a href=#168 id=168 data-nosnippet>168</a><span class="kw">pub mod </span>types;
+<a href=#169 id=169 data-nosnippet>169</a><span class="kw">pub mod </span>utils;
+<a href=#170 id=170 data-nosnippet>170</a><span class="kw">pub mod </span>verify;
 <a href=#171 id=171 data-nosnippet>171</a>
-<a href=#172 id=172 data-nosnippet>172</a><span class="doccomment">/// Ethereum アドレス（[`alloy::primitives::Address`] の再エクスポート）。
-<a href=#173 id=173 data-nosnippet>173</a></span><span class="kw">pub use </span>alloy::primitives::Address;
-<a href=#174 id=174 data-nosnippet>174</a><span class="doccomment">/// EIP-712 ドメイン（[`alloy::sol_types::Eip712Domain`] の再エクスポート）。
-<a href=#175 id=175 data-nosnippet>175</a></span><span class="kw">pub use </span>alloy::sol_types::Eip712Domain;
-<a href=#176 id=176 data-nosnippet>176</a><span class="doccomment">/// SDK 全体で用いるエラー型。
-<a href=#177 id=177 data-nosnippet>177</a></span><span class="kw">pub use </span>error::SdkError;
-<a href=#178 id=178 data-nosnippet>178</a><span class="kw">pub use </span>types::signed_data::{
-<a href=#179 id=179 data-nosnippet>179</a>    SignedBatchTransferWithCommit, SignedCancelAuthorization, SignedTransferWithCommit,
-<a href=#180 id=180 data-nosnippet>180</a>    SignedUniCommitTransfers,
-<a href=#181 id=181 data-nosnippet>181</a>};
-<a href=#182 id=182 data-nosnippet>182</a><span class="doccomment">/// [`verify`] に渡すオフチェーン検証引数。
-<a href=#183 id=183 data-nosnippet>183</a></span><span class="kw">pub use </span>verify::VerifyArgs;
-<a href=#184 id=184 data-nosnippet>184</a><span class="doccomment">/// `sol!` が生成する `TransferWithCommitmentSent` イベント型（[`SolEvent::decode_log`](alloy::sol_types::SolEvent::decode_log) の `.data` と同型）。
-<a href=#185 id=185 data-nosnippet>185</a></span><span class="kw">pub use </span>events::TransferWithCommitmentSent;
-<a href=#186 id=186 data-nosnippet>186</a><span class="kw">pub use </span>utils::{
-<a href=#187 id=187 data-nosnippet>187</a>    assert_provider_supported_chain, assert_signed_domain_matches_client_and_config,
-<a href=#188 id=188 data-nosnippet>188</a>    assert_signed_domain_matches_provider_and_config, is_supported_chain, is_supported_chain_id,
-<a href=#189 id=189 data-nosnippet>189</a>};
-<a href=#190 id=190 data-nosnippet>190</a>
-<a href=#191 id=191 data-nosnippet>191</a><span class="kw">mod </span>contract;
+<a href=#172 id=172 data-nosnippet>172</a><span class="doccomment">/// レシート解析用の `sol!` イベント定義。
+<a href=#173 id=173 data-nosnippet>173</a></span><span class="kw">pub mod </span>events;
+<a href=#174 id=174 data-nosnippet>174</a>
+<a href=#175 id=175 data-nosnippet>175</a><span class="doccomment">/// トランザクション送信（自己送金・署名付き）。
+<a href=#176 id=176 data-nosnippet>176</a></span><span class="kw">pub mod </span>send_transaction;
+<a href=#177 id=177 data-nosnippet>177</a>
+<a href=#178 id=178 data-nosnippet>178</a><span class="doccomment">/// Ethereum アドレス（[`alloy::primitives::Address`] の再エクスポート）。
+<a href=#179 id=179 data-nosnippet>179</a></span><span class="kw">pub use </span>alloy::primitives::Address;
+<a href=#180 id=180 data-nosnippet>180</a><span class="doccomment">/// EIP-712 ドメイン（[`alloy::sol_types::Eip712Domain`] の再エクスポート）。
+<a href=#181 id=181 data-nosnippet>181</a></span><span class="kw">pub use </span>alloy::sol_types::Eip712Domain;
+<a href=#182 id=182 data-nosnippet>182</a><span class="doccomment">/// SDK 全体で用いるエラー型。
+<a href=#183 id=183 data-nosnippet>183</a></span><span class="kw">pub use </span>error::SdkError;
+<a href=#184 id=184 data-nosnippet>184</a><span class="kw">pub use </span>types::signed_data::{
+<a href=#185 id=185 data-nosnippet>185</a>    SignedBatchTransferWithCommit, SignedCancelAuthorization, SignedTransferWithCommit,
+<a href=#186 id=186 data-nosnippet>186</a>    SignedUniCommitTransfers,
+<a href=#187 id=187 data-nosnippet>187</a>};
+<a href=#188 id=188 data-nosnippet>188</a><span class="doccomment">/// [`verify`] に渡すオフチェーン検証引数。
+<a href=#189 id=189 data-nosnippet>189</a></span><span class="kw">pub use </span>verify::VerifyArgs;
+<a href=#190 id=190 data-nosnippet>190</a><span class="doccomment">/// `sol!` が生成する `TransferWithCommitmentSent` イベント型（[`SolEvent::decode_log`](alloy::sol_types::SolEvent::decode_log) の `.data` と同型）。
+<a href=#191 id=191 data-nosnippet>191</a></span><span class="kw">pub use </span>events::TransferWithCommitmentSent;
+<a href=#192 id=192 data-nosnippet>192</a><span class="kw">pub use </span>utils::{
+<a href=#193 id=193 data-nosnippet>193</a>    assert_provider_supported_chain, assert_signed_domain_matches_client_and_config,
+<a href=#194 id=194 data-nosnippet>194</a>    assert_signed_domain_matches_provider_and_config,
+<a href=#195 id=195 data-nosnippet>195</a>};
+<a href=#196 id=196 data-nosnippet>196</a>
+<a href=#197 id=197 data-nosnippet>197</a><span class="kw">mod </span>contract;
 </code></pre></div></section></main></body></html>

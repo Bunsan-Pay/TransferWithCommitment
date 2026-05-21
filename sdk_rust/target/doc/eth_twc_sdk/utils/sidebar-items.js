@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"fn":["assert_provider_supported_chain","assert_signed_domain_matches_client_and_config","assert_signed_domain_matches_provider_and_config","chain_id_matches","is_supported_chain","is_supported_chain_id"]};
+window.SIDEBAR_ITEMS = {"fn":["assert_onchain_eip712_domain_matches_config","assert_provider_supported_chain","assert_signed_domain_matches_client_and_config","assert_signed_domain_matches_provider_and_config","assert_transfer_contract_deployed","chain_id_matches"]};
