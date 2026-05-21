@@ -17,7 +17,7 @@ bun run build
 
 サブパス import（例: `eth-twc-sdk-js/signatureTransfer/single`、`eth-twc-sdk-js/selfTransfer/single`）を利用する。ルートの一括エントリはない。
 
-利用者向けの操作例・API 一覧は **[docs/README.md](./docs/README.md)** を参照。
+利用者向けの操作例・API 一覧は **[docs](https://bunsan-pay.github.io/TransferWithCommitment/sdk-js)** を参照。
 
 ## 設定
 

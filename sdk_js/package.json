@@ -4,12 +4,11 @@
   "type": "module",
   "files": [
     "dist",
-    "README.md",
-    "docs"
+    "README.md"
   ],
   "scripts": {
-    "build": "tsup",
-    "prepublishOnly": "tsup",
+    "build": "bunx tsup",
+    "prepublishOnly": "bun run build",
     "test": "bun test test/unit/config.test.ts test/unit/utils.test.ts test/unit/verify.test.ts && bun test --preload ./test/unit/preload.ts test/unit/sign.test.ts test/unit/selfTransfer.test.ts test/unit/signatureTransfer.test.ts",
     "test:integration": "bash ../scripts/test-sdk-js-integration.sh"
   },

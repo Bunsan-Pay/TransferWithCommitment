@@ -1,6 +1,7 @@
 # eth-twc-sdk-react
 
-[`eth-twc-sdk-js`](../sdk_js) を **wagmi v3** と **TanStack Query v5** 上で使うための React フック群です。**Vite / Next.js など、フロントのバンドラ＋ React 18/19** を想定しています。
+[`eth-twc-sdk-js`](https://www.npmjs.com/package/eth-twc-sdk-js) を **wagmi v3** と **TanStack Query v5** 上で使うための React フック群です。**Vite / Next.js など、フロントのバンドラ＋ React 18/19** を想定しています。
+[docsはこちら](https://bunsan-pay.github.io/TransferWithCommitment/sdk-react)。
 
 ## 前提
 
@@ -8,7 +9,7 @@
 
 1. **`WagmiProvider`**（チェーン・トランスポート・コネクタの設定）
 2. **`QueryClientProvider`**（`@tanstack/react-query`）
-3. **`commitment`（`bytes32`）** — `eth-twc-sdk-js` と同様、**コミットメントを導出するヘルパは提供しない**（外部プロトコルとのスキーマの相互運用性と、ハッシュ選択の単一障害点回避のため）。利用者は **暗号学的にランダムな `r`** と **安全なハッシュ `H`** を選び、少なくとも **`commitment = H(message || r)`**（`message` はアプリのスキーマに従うバイト列）とすることを推奨する。詳細は [`sdk_js/docs/README.md`](../sdk_js/docs/README.md) の「Commitment」の節を参照。
+3. **`commitment`（`bytes32`）** — `eth-twc-sdk-js` と同様、**コミットメントを導出するヘルパは提供しない**（外部プロトコルとのスキーマの相互運用性と、ハッシュ選択の単一障害点回避のため）。利用者は **暗号学的にランダムな `r`** と **安全なハッシュ `H`** を選び、少なくとも **`commitment = H(message || r)`**（`message` はアプリのスキーマに従うバイト列）とすることを推奨する。詳細は [`docs/sdk-js`](https://bunsan-pay.github.io/TransferWithCommitment/sdk-js) の「Commitment」の節を参照。
 
 ```tsx
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
@@ -205,46 +206,46 @@ export function EventLogs({ txHash }: { txHash: Hex | undefined }) {
 
 ### 定数の再エクスポート（`eth-twc-sdk-js/config`）
 
-| 名前                            | 型 / 値                                                                    |
-| ------------------------------- | -------------------------------------------------------------------------- |
+| 名前                            | 型 / 値                                                           |
+| ------------------------------- | ----------------------------------------------------------------- |
 | `transferWithCommitmentAddress` | `` `0x${string}` `` — CREATE2 決定論アドレス（`twcConstants.ts`） |
-| CREATE2 / EIP-712 定数 | JS SDK `config` と同じ再エクスポート |
+| CREATE2 / EIP-712 定数          | JS SDK `config` と同じ再エクスポート                              |
 
 ### デプロイ確認（hook）
 
-| フック                  | 引数 | 戻り値                                                                                                         |
-| ----------------------- | ---- | -------------------------------------------------------------------------------------------------------------- |
+| フック                                                                | 引数 | 戻り値                                                                                       |
+| --------------------------------------------------------------------- | ---- | -------------------------------------------------------------------------------------------- |
 | `useIsTransferWithCommitmentDeployed()`（別名 `useIsSupportedChain`） | なし | `boolean` — canonical TWC アドレスで `getCode` が非空なら `true`。クライアントなしは `false` |
 
 ### Self-Call 送信（`sdk_js/selfTransfer/*`）
 
-| フック                             | 引数       | 戻り値                                                       |
-| ---------------------------------- | ---------- | ------------------------------------------------------------ |
-| `useSelfTransfer(options?)`        | `options?` | `UseMutationResult<Hex, Error, SelfTransferSingleArgs>`          |
-| `useSelfUnifiedTransfer(options?)` | `options?` | `UseMutationResult<Hex, Error, SelfTransferUnifiedArgs>`      |
-| `useSelfBatchTransfer(options?)`   | `options?` | `UseMutationResult<Hex, Error, SelfTransferBatchArgs>` |
+| フック                             | 引数       | 戻り値                                                   |
+| ---------------------------------- | ---------- | -------------------------------------------------------- |
+| `useSelfTransfer(options?)`        | `options?` | `UseMutationResult<Hex, Error, SelfTransferSingleArgs>`  |
+| `useSelfUnifiedTransfer(options?)` | `options?` | `UseMutationResult<Hex, Error, SelfTransferUnifiedArgs>` |
+| `useSelfBatchTransfer(options?)`   | `options?` | `UseMutationResult<Hex, Error, SelfTransferBatchArgs>`   |
 
 引数型は `eth-twc-sdk-js/selfTransfer/single|batch|unified` を参照。
 
 ### 署名済み送信（`sdk_js/signatureTransfer/*/sendTx`）
 
-| フック                                       | 引数       | 戻り値                                                         |
-| -------------------------------------------- | ---------- | -------------------------------------------------------------- |
+| フック                                       | 引数       | 戻り値                                                     |
+| -------------------------------------------- | ---------- | ---------------------------------------------------------- |
 | `useSendAuthorizedSingleTransfer(options?)`  | `options?` | `UseMutationResult<Hex, Error, SignedSingleTransfer>`      |
-| `useSendAuthorizedUnifiedTransfer(options?)` | `options?` | `UseMutationResult<Hex, Error, SignedUnifiedTransfer>`      |
-| `useSendAuthorizedBatchTransfer(options?)`   | `options?` | `UseMutationResult<Hex, Error, SignedBatchTransfer>` |
-| `useSendCancelAuthorization(options?)`       | `options?` | `UseMutationResult<Hex, Error, SignedCancelAuthorization>`     |
+| `useSendAuthorizedUnifiedTransfer(options?)` | `options?` | `UseMutationResult<Hex, Error, SignedUnifiedTransfer>`     |
+| `useSendAuthorizedBatchTransfer(options?)`   | `options?` | `UseMutationResult<Hex, Error, SignedBatchTransfer>`       |
+| `useSendCancelAuthorization(options?)`       | `options?` | `UseMutationResult<Hex, Error, SignedCancelAuthorization>` |
 
 署名済み型は **`eth-twc-sdk-js/signatureTransfer/<variant>`** の `Signed*` と `signedDataSchema` を参照。
 
 ### 署名（`sdk_js/signatureTransfer/*/sign.ts`）
 
-| フック                                     | 引数       | 戻り値                                                                                 |
-| ------------------------------------------ | ---------- | -------------------------------------------------------------------------------------- |
-| `useSignSingleTransfer(options?)`          | `options?` | `UseMutationResult<SignedSingleTransfer, Error, SignatureTransferSingleArgs>`               |
-| `useSignUniCommitTransfers(options?)`      | `options?` | `UseMutationResult<SignedUnifiedTransfer, Error, SignatureTransferUnifiedArgs>`           |
-| `useSignBatchTransferWithCommit(options?)` | `options?` | `UseMutationResult<SignedBatchTransfer, Error, SignatureTransferBatchArgs>` |
-| `useSignCancelAuthorization(options?)`     | `options?` | `UseMutationResult<SignedCancelAuthorization, Error, CancelAuthorizationArgs>`         |
+| フック                                     | 引数       | 戻り値                                                                          |
+| ------------------------------------------ | ---------- | ------------------------------------------------------------------------------- |
+| `useSignSingleTransfer(options?)`          | `options?` | `UseMutationResult<SignedSingleTransfer, Error, SignatureTransferSingleArgs>`   |
+| `useSignUniCommitTransfers(options?)`      | `options?` | `UseMutationResult<SignedUnifiedTransfer, Error, SignatureTransferUnifiedArgs>` |
+| `useSignBatchTransferWithCommit(options?)` | `options?` | `UseMutationResult<SignedBatchTransfer, Error, SignatureTransferBatchArgs>`     |
+| `useSignCancelAuthorization(options?)`     | `options?` | `UseMutationResult<SignedCancelAuthorization, Error, CancelAuthorizationArgs>`  |
 
 引数・戻り値の型は `eth-twc-sdk-js/signatureTransfer/<variant>` を参照。バッチでは `SignatureTransferBatchArgs` / `SignedBatchTransfer` に **`batchCommitment`** が含まれます。
 

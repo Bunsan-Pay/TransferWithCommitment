@@ -1,5 +1,6 @@
 {
   "name": "eth-twc-sdk-react",
+  "version": "0.1.1",
   "module": "index.ts",
   "type": "module",
   "exports": {
